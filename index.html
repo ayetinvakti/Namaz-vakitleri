@@ -32,13 +32,47 @@
 
         .header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .header h1 {
             font-size: 1.6rem;
             margin-bottom: 6px;
             color: var(--accent-color);
+        }
+
+        /* Geri Sayım Kartı */
+        .countdown-card {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 2px solid var(--accent-color);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.2);
+        }
+
+        .countdown-title {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .next-prayer-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 8px;
+        }
+
+        .timer-display {
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            font-family: monospace;
+            color: var(--text-color);
         }
 
         .city-select {
@@ -68,6 +102,14 @@
             justify-content: space-between;
             align-items: center;
             border: 1px solid #334155;
+            transition: all 0.3s ease;
+        }
+
+        /* Aktif Vakit Vurgusu */
+        .vakit-card.active {
+            border-color: var(--accent-color);
+            background-color: #112a2e;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
         }
 
         .vakit-isim {
@@ -95,6 +137,13 @@
     <div class="header">
         <h1>Namaz Vakitleri</h1>
         <p id="tarih-bilgi" style="color: var(--text-muted); font-size: 0.9rem;">Yükleniyor...</p>
+    </div>
+
+    <!-- Kalan Zaman Sayacı Kartı -->
+    <div class="countdown-card">
+        <div class="countdown-title">Sonraki Vakit</div>
+        <div class="next-prayer-name" id="next-prayer-title">Hesaplanıyor...</div>
+        <div class="timer-display" id="countdown-timer">00:00:00</div>
     </div>
 
     <!-- 81 İl Listesi -->
@@ -184,27 +233,27 @@
 
     <!-- Vakit Listesi -->
     <div class="vakit-cards">
-        <div class="vakit-card">
+        <div class="vakit-card" id="card-Fajr">
             <span class="vakit-isim">İmsak</span>
             <span class="vakit-saat" id="Fajr">--:--</span>
         </div>
-        <div class="vakit-card">
+        <div class="vakit-card" id="card-Sunrise">
             <span class="vakit-isim">Güneş</span>
             <span class="vakit-saat" id="Sunrise">--:--</span>
         </div>
-        <div class="vakit-card">
+        <div class="vakit-card" id="card-Dhuhr">
             <span class="vakit-isim">Öğle</span>
             <span class="vakit-saat" id="Dhuhr">--:--</span>
         </div>
-        <div class="vakit-card">
+        <div class="vakit-card" id="card-Asr">
             <span class="vakit-isim">İkindi</span>
             <span class="vakit-saat" id="Asr">--:--</span>
         </div>
-        <div class="vakit-card">
+        <div class="vakit-card" id="card-Maghrib">
             <span class="vakit-isim">Akşam</span>
             <span class="vakit-saat" id="Maghrib">--:--</span>
         </div>
-        <div class="vakit-card">
+        <div class="vakit-card" id="card-Isha">
             <span class="vakit-isim">Yatsı</span>
             <span class="vakit-saat" id="Isha">--:--</span>
         </div>
@@ -216,6 +265,8 @@
 </div>
 
 <script>
+    let timerInterval = null;
+
     async function vakitleriGetir() {
         const sehir = document.getElementById('sehir-secimi').value;
         const url = `https://api.aladhan.com/v1/timingsByCity?city=${sehir}&country=Turkey&method=13`;
@@ -244,10 +295,75 @@
             document.getElementById('Maghrib').innerText = timings.Maghrib;
             document.getElementById('Isha').innerText = timings.Isha;
 
+            // Sayacı Başlat
+            sayaciBaslat(timings);
+
         } catch (error) {
             console.error("Vakitler alınırken hata oluştu:", error);
             document.getElementById('tarih-bilgi').innerText = "Veri alınamadı";
         }
+    }
+
+    function sayaciBaslat(timings) {
+        if (timerInterval) clearInterval(timerInterval);
+
+        const vakitListesi = [
+            { id: 'Fajr', name: 'İmsak', time: timings.Fajr },
+            { id: 'Sunrise', name: 'Güneş', time: timings.Sunrise },
+            { id: 'Dhuhr', name: 'Öğle', time: timings.Dhuhr },
+            { id: 'Asr', name: 'İkindi', time: timings.Asr },
+            { id: 'Maghrib', name: 'Akşam', time: timings.Maghrib },
+            { id: 'Isha', name: 'Yatsı', time: timings.Isha }
+        ];
+
+        function guncelle() {
+            const simdi = new Date();
+            let sonrakiVakit = null;
+
+            // Kart vurgularını temizle
+            document.querySelectorAll('.vakit-card').forEach(card => card.classList.remove('active'));
+
+            for (let vakit of vakitListesi) {
+                const [saat, dakika] = vakit.time.split(':');
+                const vakitTarihi = new Date();
+                vakitTarihi.setHours(parseInt(saat), parseInt(dakika), 0, 0);
+
+                if (vakitTarihi > simdi) {
+                    sonrakiVakit = { ...vakit, targetDate: vakitTarihi };
+                    break;
+                }
+            }
+
+            // Eğer tüm vakitler geçtiyse (Yatsıdan sonra ise yarının İmsak vakti)
+            if (!sonrakiVakit) {
+                const [saat, dakika] = timings.Fajr.split(':');
+                const yarinkiImsak = new Date();
+                yarinkiImsak.setDate(yarinkiImsak.getDate() + 1);
+                yarinkiImsak.setHours(parseInt(saat), parseInt(dakika), 0, 0);
+
+                sonrakiVakit = { id: 'Fajr', name: 'İmsak (Yarın)', targetDate: yarinkiImsak };
+            }
+
+            // Aktif olan kartı vurgula
+            const activeCard = document.getElementById(`card-${sonrakiVakit.id}`);
+            if (activeCard) activeCard.classList.add('active');
+
+            // Kalan süreyi hesapla
+            const fark = sonrakiVakit.targetDate - simdi;
+
+            const saatler = Math.floor(fark / (1000 * 60 * 60));
+            const dakikalar = Math.floor((fark % (1000 * 60 * 60)) / (1000 * 60));
+            const saniyeler = Math.floor((fark % (1000 * 60)) / 1000);
+
+            const format = (num) => String(num).padStart(2, '0');
+
+            document.getElementById('next-prayer-title').innerText = sonrakiVakit.name;
+            document.getElementById('countdown-timer').innerText = 
+                `${format(saatler)}:${format(dakikalar)}:${format(saniyeler)}`;
+        }
+
+        guncelle();
+        timerInterval = setInterval(guncelle, 1000);
     }
 
     // Sayfa açıldığında çalıştır
