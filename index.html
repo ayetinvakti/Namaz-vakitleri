@@ -224,10 +224,19 @@
             const response = await fetch(url);
             const data = await response.json();
             const timings = data.data.timings;
-            const date = data.data.date.readable;
 
-            document.getElementById('tarih-bilgi').innerText = date;
+            // Tarihi Türkçe formata çevirme
+            const bugun = new Date();
+            const turkceTarih = bugun.toLocaleDateString('tr-TR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                weekday: 'long'
+            });
 
+            document.getElementById('tarih-bilgi').innerText = turkceTarih;
+
+            // Saatleri Güncelle
             document.getElementById('Fajr').innerText = timings.Fajr;
             document.getElementById('Sunrise').innerText = timings.Sunrise;
             document.getElementById('Dhuhr').innerText = timings.Dhuhr;
@@ -237,6 +246,7 @@
 
         } catch (error) {
             console.error("Vakitler alınırken hata oluştu:", error);
+            document.getElementById('tarih-bilgi').innerText = "Veri alınamadı";
         }
     }
 
