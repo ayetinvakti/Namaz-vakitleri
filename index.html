@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canlı Namaz Vakitleri | Ayetin Vakti</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #10b981;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: var(--accent-color);
+        }
+
+        .city-select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid #334155;
+            font-size: 1rem;
+            outline: none;
+            margin-bottom: 20px;
+        }
+
+        .vakit-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .vakit-card {
+            background-color: var(--card-bg);
+            padding: 16px 20px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #334155;
+            transition: transform 0.2s;
+        }
+
+        .vakit-card.active {
+            border-color: var(--accent-color);
+            background-color: #064e3b;
+        }
+
+        .vakit-isim {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .vakit-saat {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .vakit-card.active .vakit-saat {
+            color: #ffffff;
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Namaz Vakitleri</h1>
+        <p id="tarih-bilgi" style="color: var(--text-muted); font-size: 0.9rem;"></p>
+    </div>
+
+    <!-- Şehir Seçimi -->
+    <select id="sehir-secimi" class="city-select" onchange="vakitleriGetir()">
+        <option value="Istanbul">İstanbul</option>
+        <option value="Ankara">Ankara</option>
+        <option value="Izmir">İzmir</option>
+        <option value="Bursa">Bursa</option>
+        <option value="Antalya">Antalya</option>
+        <option value="Erzurum">Erzurum</option>
+        <option value="Konya">Konya</option>
+        <!-- İhtiyacınıza göre diğer şehirleri ekleyebilirsiniz -->
+    </select>
+
+    <!-- Vakit Listesi -->
+    <div class="vakit-cards">
+        <div class="vakit-card" id="imsak-box">
+            <span class="vakit-isim">İmsak</span>
+            <span class="vakit-saat" id="Fajr">--:--</span>
+        </div>
+        <div class="vakit-card" id="gunes-box">
+            <span class="vakit-isim">Güneş</span>
+            <span class="vakit-saat" id="Sunrise">--:--</span>
+        </div>
+        <div class="vakit-card" id="ogle-box">
+            <span class="vakit-isim">Öğle</span>
+            <span class="vakit-saat" id="Dhuhr">--:--</span>
+        </div>
+        <div class="vakit-card" id="ikindi-box">
+            <span class="vakit-isim">İkindi</span>
+            <span class="vakit-saat" id="Asr">--:--</span>
+        </div>
+        <div class="vakit-card" id="aksam-box">
+            <span class="vakit-isim">Akşam</span>
+            <span class="vakit-saat" id="Maghrib">--:--</span>
+        </div>
+        <div class="vakit-card" id="yatsi-box">
+            <span class="vakit-isim">Yatsı</span>
+            <span class="vakit-saat" id="Isha">--:--</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Ayetin Vakti • Diyanet Uyumlu Veriler</p>
+    </div>
+</div>
+
+<script>
+    async function vakitleriGetir() {
+        const sehir = document.getElementById('sehir-secimi').value;
+        // Diyanet İşleri Başkanlığı hesaplama yöntemi (method=13)
+        const url = `https://api.aladhan.com/v1/timingsByCity?city=${sehir}&country=Turkey&method=13`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            const timings = data.data.timings;
+            const date = data.data.date.readable;
+
+            document.getElementById('tarih-bilgi').innerText = date;
+
+            // Saatleri Güncelle
+            document.getElementById('Fajr').innerText = timings.Fajr;
+            document.getElementById('Sunrise').innerText = timings.Sunrise;
+            document.getElementById('Dhuhr').innerText = timings.Dhuhr;
+            document.getElementById('Asr').innerText = timings.Asr;
+            document.getElementById('Maghrib').innerText = timings.Maghrib;
+            document.getElementById('Isha').innerText = timings.Isha;
+
+        } catch (error) {
+            console.error("Vakitler alınırken hata oluştu:", error);
+        }
+    }
+
+    // Sayfa yüklendiğinde çalıştır
+    vakitleriGetir();
+</script>
+
+</body>
+</html>
