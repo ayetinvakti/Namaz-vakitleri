@@ -8,7 +8,7 @@
             document.body.classList.add('light-mode');
         });
     }
-</script>
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canlı Namaz Vakitleri | Ayetin Vakti</title>
@@ -16,6 +16,13 @@
     <meta property="og:title" content="Namaz Vakitleri | Ayetin Vakti">
     <meta property="og:description" content="Canlı namaz vakitleri, kalan süre sayacı ve hassas konum desteği.">
     <meta property="og:type" content="website">
+    
+    <!-- PWA Manifest ve iOS Destek Etiketleri -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Namaz Vakitleri">
+
     <style>
         :root {
             --bg-color: #0f172a;
@@ -542,16 +549,18 @@
         timerInterval = setInterval(guncelle, 1000);
     }
 
-    // Gelişmiş Bildirim ve iOS Algılama Fonksiyonu
+    // Güncellenmiş Bildirim ve iOS Standalone Algılama Fonksiyonu
     function bildirimIzniAta() {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        
-        if (isIOS) {
-            // iOS kullanıcısı Safari sekmesindeyse özel modal göster
+        const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+        // Eğer iPhone'da ve HÂLÂ normal Safari sekmesindeyse modalı göster
+        if (isIOS && !isStandalone) {
             document.getElementById('iosModal').style.display = 'flex';
             return;
         }
 
+        // Ana ekrandan açılmışsa veya Android ise direkt bildirim izni iste
         if (!('Notification' in window)) {
             alert('Bu tarayıcı bildirimleri desteklemiyor.');
             return;
@@ -564,7 +573,7 @@
                     icon: '/icon.png'
                 });
             } else {
-                alert('Bildirim izni verilmedi. Tarayıcı ayarlarından izin verebilirsiniz.');
+                alert('Bildirim izni verilmedi. Cihaz ayarlarından izin verebilirsiniz.');
             }
         });
     }
