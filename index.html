@@ -198,6 +198,18 @@ body.light-mode .theme-toggle-btn {
     border-color: rgba(0, 0, 0, 0.1);
     color: #2d3748;
 }
+        /* Gündüz modunda tüm sayfanın arka planını ve kartlarını zorla beyaza çekiyoruz */
+body.light-mode {
+    background-color: #f8fafc !important;
+    background: #f8fafc !important;
+    color: #1a202c !important;
+}
+
+/* Sayfa üst başlığının gündüz modunda kaymasını önlüyoruz */
+body.light-mode h1,
+body.light-mode h2 {
+    color: #1a202c !important;
+}
     </style>
 </head>
 <body>
