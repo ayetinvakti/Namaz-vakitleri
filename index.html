@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+    <script>
+    if (localStorage.getItem('theme') === 'light') {
+        document.documentElement.classList.add('light-mode');
+        window.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.add('light-mode');
+        });
+    }
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canlı Namaz Vakitleri | Ayetin Vakti</title>
@@ -133,6 +141,30 @@
             font-size: 0.85rem;
             color: var(--text-muted);
         }
+        /* Açık Tema (Light Mode) Stilleri */
+body.light-mode {
+    background-color: #f8fafc !important;
+    color: #1a202c !important;
+}
+
+body.light-mode .card, 
+body.light-mode .container,
+body.light-mode .vakit-card,
+body.light-mode .header {
+    background: #ffffff !important;
+    color: #1a202c !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode h1, 
+body.light-mode h2, 
+body.light-mode h3,
+body.light-mode p,
+body.light-mode .vakit-title,
+body.light-mode .vakit-time {
+    color: #2d3748 !important;
+}
     </style>
 </head>
 <body>
