@@ -150,6 +150,39 @@
             background-color: rgba(16, 185, 129, 0.1);
         }
 
+        /* iOS Yönerge Kutusu */
+        .ios-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .ios-modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--accent-color);
+            padding: 25px;
+            border-radius: 16px;
+            max-width: 360px;
+            text-align: center;
+            color: var(--text-color);
+        }
+        .ios-modal-content h3 { color: var(--accent-color); margin-top: 0; }
+        .ios-modal-content p { font-size: 0.95rem; line-height: 1.5; color: var(--text-muted); }
+        .close-modal-btn {
+            background: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
         /* --- GÜNDÜZ MODU DÜZELTMELERİ --- */
         body.light-mode .header h1 {
             color: #059669 !important;
@@ -174,10 +207,15 @@
         }
 
         body.light-mode .vakit-card,
-        body.light-mode .notification-btn {
+        body.light-mode .notification-btn,
+        body.light-mode .ios-modal-content {
             background-color: #ffffff !important;
             border-color: #e2e8f0 !important;
             color: #1e293b !important;
+        }
+
+        body.light-mode .ios-modal-content p {
+            color: #64748b !important;
         }
 
         body.light-mode .vakit-isim {
@@ -313,7 +351,7 @@
         <option value="Duzce">Düzce</option>
         <option value="Edirne">Edirne</option>
         <option value="Elazig">Elazığ</option>
-        <option value="Erzincan">Erzincan</option>
+        <option value="Erzincan" selected>Erzincan</option>
         <option value="Erzurum">Erzurum</option>
         <option value="Eskisehir">Eskişehir</option>
         <option value="Gaziantep">Gaziantep</option>
@@ -323,7 +361,7 @@
         <option value="Hatay">Hatay</option>
         <option value="Igdir">Iğdır</option>
         <option value="Isparta">Isparta</option>
-        <option value="Istanbul" selected>İstanbul</option>
+        <option value="Istanbul">İstanbul</option>
         <option value="Izmir">İzmir</option>
         <option value="Kahramanmaras">Kahramanmaraş</option>
         <option value="Karabuk">Karabük</option>
@@ -400,6 +438,15 @@
     </div>
 </div>
 
+<!-- iOS Bilgilendirme Modalı -->
+<div class="ios-modal" id="iosModal">
+    <div class="ios-modal-content">
+        <h3>iPhone İçin Bildirim Uyarısı</h3>
+        <p>Apple kuralları gereği Safari sekmeleri anlık bildirim gönderemez. Bildirim alabilmek için alttaki <b>Paylaş (📤)</b> butonuna basıp <b>"Ana Ekrana Ekle"</b> seçeneğini seçerek uygulamayı telefonunuza yüklemelisiniz.</p>
+        <button class="close-modal-btn" onclick="kapatIosModal()">Anladım</button>
+    </div>
+</div>
+
 <script>
     let timerInterval = null;
 
@@ -412,7 +459,6 @@
             const data = await response.json();
             const timings = data.data.timings;
 
-            // Tarihi Türkçe formata çevirme
             const bugun = new Date();
             const turkceTarih = bugun.toLocaleDateString('tr-TR', {
                 day: 'numeric',
@@ -423,7 +469,6 @@
 
             document.getElementById('tarih-bilgi').innerText = turkceTarih;
 
-            // Saatleri Güncelle
             document.getElementById('Fajr').innerText = timings.Fajr;
             document.getElementById('Sunrise').innerText = timings.Sunrise;
             document.getElementById('Dhuhr').innerText = timings.Dhuhr;
@@ -431,7 +476,6 @@
             document.getElementById('Maghrib').innerText = timings.Maghrib;
             document.getElementById('Isha').innerText = timings.Isha;
 
-            // Sayacı Başlat
             sayaciBaslat(timings);
 
         } catch (error) {
@@ -456,7 +500,6 @@
             const simdi = new Date();
             let sonrakiVakit = null;
 
-            // Kart vurgularını temizle
             document.querySelectorAll('.vakit-card').forEach(card => card.classList.remove('active'));
 
             for (let vakit of vakitListesi) {
@@ -470,7 +513,6 @@
                 }
             }
 
-            // Eğer tüm vakitler geçtiyse (Yatsıdan sonra ise yarının İmsak vakti)
             if (!sonrakiVakit) {
                 const [saat, dakika] = timings.Fajr.split(':');
                 const yarinkiImsak = new Date();
@@ -480,11 +522,9 @@
                 sonrakiVakit = { id: 'Fajr', name: 'İmsak (Yarın)', targetDate: yarinkiImsak };
             }
 
-            // Aktif olan kartı vurgula
             const activeCard = document.getElementById(`card-${sonrakiVakit.id}`);
             if (activeCard) activeCard.classList.add('active');
 
-            // Kalan süreyi hesapla
             const fark = sonrakiVakit.targetDate - simdi;
 
             const saatler = Math.floor(fark / (1000 * 60 * 60));
@@ -502,8 +542,16 @@
         timerInterval = setInterval(guncelle, 1000);
     }
 
-    // Bildirim İzni Fonksiyonu
+    // Gelişmiş Bildirim ve iOS Algılama Fonksiyonu
     function bildirimIzniAta() {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        
+        if (isIOS) {
+            // iOS kullanıcısı Safari sekmesindeyse özel modal göster
+            document.getElementById('iosModal').style.display = 'flex';
+            return;
+        }
+
         if (!('Notification' in window)) {
             alert('Bu tarayıcı bildirimleri desteklemiyor.');
             return;
@@ -521,7 +569,10 @@
         });
     }
 
-    // Sayfa açıldığında çalıştır
+    function kapatIosModal() {
+        document.getElementById('iosModal').style.display = 'none';
+    }
+
     vakitleriGetir();
 </script>
 <script>
@@ -540,7 +591,6 @@
         if (text) text.innerText = isLight ? 'Gündüz' : 'Gece';
     }
 
-    // Sayfa açıldığında hafızayı kontrol edip UI'ı güncelle
     document.addEventListener('DOMContentLoaded', () => {
         const isLight = localStorage.getItem('theme') === 'light';
         if (isLight) {
