@@ -115,6 +115,9 @@
             align-items: center;
             border: 1px solid #334155;
             transition: all 0.3s ease;
+            text-decoration: none;
+            color: var(--text-color);
+            cursor: pointer;
         }
 
         /* Aktif Vakit Vurgusu */
@@ -123,14 +126,35 @@
             background-color: #112a2e;
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
         }
-/* --- GÜNDÜZ MODU DÜZELTMELERİ --- */
-        
-        /* Sayfa Başlık Yazısı */
+
+        /* Bildirim Butonu Stili */
+        .notification-btn {
+            background-color: var(--card-bg);
+            border: 1px dashed var(--accent-color);
+            border-radius: 12px;
+            padding: 14px 20px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: var(--text-color);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .notification-btn:hover {
+            background-color: rgba(16, 185, 129, 0.1);
+        }
+
+        /* --- GÜNDÜZ MODU DÜZELTMELERİ --- */
         body.light-mode .header h1 {
             color: #059669 !important;
         }
 
-        /* Sayaç (Kalan Zaman) Kartı Gündüz Modu */
         body.light-mode .countdown-card {
             background: #ffffff !important;
             border-color: #10b981 !important;
@@ -149,8 +173,8 @@
             color: #0f172a !important;
         }
 
-        /* Vakit Listesi Kartları Gündüz Modu */
-        body.light-mode .vakit-card {
+        body.light-mode .vakit-card,
+        body.light-mode .notification-btn {
             background-color: #ffffff !important;
             border-color: #e2e8f0 !important;
             color: #1e293b !important;
@@ -164,12 +188,12 @@
             color: #059669 !important;
         }
 
-        /* Aktif Seçili Vakit Kartı */
         body.light-mode .vakit-card.active {
             background-color: #ecfdf5 !important;
             border-color: #10b981 !important;
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.2) !important;
         }
+
         .vakit-isim {
             font-weight: 600;
             font-size: 1.1rem;
@@ -187,89 +211,53 @@
             font-size: 0.85rem;
             color: var(--text-muted);
         }
-        /* Açık Tema (Light Mode) Stilleri */
-body.light-mode {
-    background-color: #f8fafc !important;
-    color: #1a202c !important;
-}
 
-body.light-mode .card, 
-body.light-mode .container,
-body.light-mode .vakit-card,
-body.light-mode .header {
-    background: #ffffff !important;
-    color: #1a202c !important;
-    border-color: #e2e8f0 !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-}
+        body.light-mode {
+            background-color: #f8fafc !important;
+            background: #f8fafc !important;
+            color: #1a202c !important;
+        }
 
-body.light-mode h1, 
-body.light-mode h2, 
-body.light-mode h3,
-body.light-mode p,
-body.light-mode .vakit-title,
-body.light-mode .vakit-time {
-    color: #2d3748 !important;
-}
-        /* Şehir Seçim Kutusu Gündüz Modu Uymu */
-body.light-mode select,
-body.light-mode .city-select {
-    background-color: #ffffff !important;
-    color: #1a202c !important;
-    border-color: #e2e8f0 !important;
-}
+        body.light-mode h1, 
+        body.light-mode h2 {
+            color: #1a202c !important;
+        }
 
-/* Sağ Üst Tema Değiştirme Butonu */
-.theme-toggle-btn {
-    position: fixed;
-    top: 15px;
-    right: 15px;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    z-index: 1000;
-    transition: all 0.3s ease;
-}
+        body.light-mode select,
+        body.light-mode .city-select {
+            background-color: #ffffff !important;
+            color: #1a202c !important;
+            border-color: #e2e8f0 !important;
+        }
 
-body.light-mode .theme-toggle-btn {
-    background: rgba(0, 0, 0, 0.05);
-    border-color: rgba(0, 0, 0, 0.1);
-    color: #2d3748;
-}
-        /* Gündüz modunda tüm sayfanın arka planını ve kartlarını zorla beyaza çekiyoruz */
-body.light-mode {
-    background-color: #f8fafc !important;
-    background: #f8fafc !important;
-    color: #1a202c !important;
-}
+        .theme-toggle-btn {
+            position: fixed !important;
+            top: 12px !important;
+            right: 12px !important;
+            padding: 6px 10px !important;
+            font-size: 0.8rem !important;
+            z-index: 9999 !important;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
 
-/* Sayfa üst başlığının gündüz modunda kaymasını önlüyoruz */
-body.light-mode h1,
-body.light-mode h2 {
-    color: #1a202c !important;
-}
-        /* Sağ üst tema butonunu köşeye tam yerleştirme */
-.theme-toggle-btn {
-    position: fixed !important;
-    top: 12px !important;
-    right: 12px !important;
-    padding: 6px 10px !important;
-    font-size: 0.8rem !important;
-    z-index: 9999 !important;
-}
+        body.light-mode .theme-toggle-btn {
+            background: rgba(0, 0, 0, 0.05);
+            border-color: rgba(0, 0, 0, 0.1);
+            color: #2d3748;
+        }
 
-/* Başlığın butonun altında kalmasını önleme */
-.container, header, h1 {
-    margin-top: 15px !important;
-}
+        .container, header, h1 {
+            margin-top: 15px !important;
+        }
     </style>
 </head>
 <body>
@@ -288,6 +276,11 @@ body.light-mode h2 {
         <div class="next-prayer-name" id="next-prayer-title">Hesaplanıyor...</div>
         <div class="timer-display" id="countdown-timer">00:00:00</div>
     </div>
+
+    <!-- Bildirim İzin Butonu -->
+    <button class="notification-btn" onclick="bildirimIzniAta()">
+        <span>🔔</span> <span>Vakit Bildirimlerini Aç</span>
+    </button>
 
     <!-- 81 İl Listesi -->
     <select id="sehir-secimi" class="city-select" onchange="vakitleriGetir()">
@@ -507,6 +500,25 @@ body.light-mode h2 {
 
         guncelle();
         timerInterval = setInterval(guncelle, 1000);
+    }
+
+    // Bildirim İzni Fonksiyonu
+    function bildirimIzniAta() {
+        if (!('Notification' in window)) {
+            alert('Bu tarayıcı bildirimleri desteklemiyor.');
+            return;
+        }
+
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                new Notification('Ayetin Vakti', {
+                    body: 'Namaz vakti bildirimleri başarıyla açıldı!',
+                    icon: '/icon.png'
+                });
+            } else {
+                alert('Bildirim izni verilmedi. Tarayıcı ayarlarından izin verebilirsiniz.');
+            }
+        });
     }
 
     // Sayfa açıldığında çalıştır
