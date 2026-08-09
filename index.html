@@ -487,17 +487,7 @@
 
 <script>
     let timerInterval = null;
-    let lastNotifiedPrayer = null; // Aynı vakit için tekrar bildirim atmaması adına
-
-    // Türkçe isim eşleştirmeleri
-    const vakit TurkceIsim = {
-        'Fajr': 'İmsak',
-        'Sunrise': 'Güneş',
-        'Dhuhr': 'Öğle',
-        'Asr': 'İkindi',
-        'Maghrib': 'Akşam',
-        'Isha': 'Yatsı'
-    };
+    let lastNotifiedPrayer = null;
 
     async function vakitleriGetir() {
         const sehir = document.getElementById('sehir-secimi').value;
@@ -583,7 +573,6 @@
             const fark = sonrakiVakit.targetDate - simdi;
             const totalSeconds = Math.floor(fark / 1000);
 
-            // --- BİLDİRİM KONTROL MEKANİZMASI ---
             const reminderMinutes = parseInt(localStorage.getItem('prayer_reminder_time') || '10', 10);
             const reminderSeconds = reminderMinutes * 60;
 
@@ -594,7 +583,6 @@
                     triggerPrayerNotification(sonrakiVakit.name, reminderMinutes);
                 }
             }
-            // ------------------------------------
 
             const saatler = Math.floor(fark / (1000 * 60 * 60));
             const dakikalar = Math.floor((fark % (1000 * 60 * 60)) / (1000 * 60));
@@ -617,7 +605,6 @@
             : `${prayerName} vaktine ${minutes} dakika kaldı!`;
 
         if ("Notification" in window && Notification.permission === "granted") {
-            // "from..." yazısını engellemek için başlık sade bırakıldı
             new Notification("Ayetin Vakti", {
                 body: msg,
                 icon: "https://ayetinvakti.github.io/favicon.ico",
@@ -686,7 +673,6 @@
         }
         updateThemeUI(isLight);
 
-        // Kayıtlı şehir varsa seç, yoksa Erzincan ile başla
         const savedCity = localStorage.getItem('user_city') || 'Erzincan';
         const selectElement = document.getElementById('sehir-secimi');
         if (selectElement) {
