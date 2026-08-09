@@ -16,12 +16,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Canlı Namaz Vakitleri | Ayetin Vakti</title>
     
-    <!-- Sosyal Medya & Mesajlaşma Önizleme Etiketleri -->
     <meta property="og:title" content="Namaz Vakitleri | Ayetin Vakti">
     <meta property="og:description" content="Canlı namaz vakitleri, kalan süre sayacı ve hassas konum desteği.">
     <meta property="og:type" content="website">
     
-    <!-- PWA Manifest ve iOS Destek Etiketleri -->
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -65,7 +63,6 @@
             max-width: 480px;
         }
 
-        /* Navbar & Yuvarlak Buton Düzeni */
         .navbar {
             width: 100%;
             display: flex;
@@ -126,7 +123,6 @@
             color: var(--accent-color);
         }
 
-        /* Geri Sayım Kartı */
         .countdown-card {
             background: linear-gradient(135deg, #1e293b, #0f172a);
             border: 2px solid var(--accent-color);
@@ -192,14 +188,12 @@
             color: var(--text-color);
         }
 
-        /* Aktif Vakit Vurgusu */
         .vakit-card.active {
             border-color: var(--accent-color);
             background-color: #112a2e;
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
         }
 
-        /* Bildirim Butonu Stili */
         .notification-btn {
             background-color: var(--card-bg);
             border: 1px dashed var(--accent-color);
@@ -222,7 +216,6 @@
             background-color: rgba(16, 185, 129, 0.1);
         }
 
-        /* iOS Yönerge Kutusu */
         .ios-modal {
             display: none;
             position: fixed;
@@ -273,7 +266,6 @@
             color: var(--text-muted);
         }
 
-        /* --- GÜNDÜZ MODU DÜZELTMELERİ --- */
         body.light-mode {
             --bg-color: #f8fafc;
             --card-bg: #ffffff;
@@ -335,7 +327,6 @@
 <body>
 
 <div class="container">
-    <!-- Üst Bar: Yazısız Geri Tuşu ve Yazısız Tema İkonu -->
     <div class="navbar">
         <a href="../" class="home-btn" title="Ana Sayfa">←</a>
         <button class="theme-icon-btn" onclick="toggleTheme()" id="theme-btn" title="Tema Değiştir">☀️</button>
@@ -346,19 +337,16 @@
         <p id="tarih-bilgi" style="color: var(--text-muted); font-size: 0.9rem;">Yükleniyor...</p>
     </div>
 
-    <!-- Kalan Zaman Sayacı Kartı -->
     <div class="countdown-card">
         <div class="countdown-title">Sonraki Vakit</div>
         <div class="next-prayer-name" id="next-prayer-title">Hesaplanıyor...</div>
         <div class="timer-display" id="countdown-timer">00:00:00</div>
     </div>
 
-    <!-- Bildirim İzin Butonu -->
     <button class="notification-btn" onclick="bildirimIzniAta()">
         <span>🔔</span> <span>Vakit Bildirimlerini Aç</span>
     </button>
 
-    <!-- 81 İl Listesi -->
     <select id="sehir-secimi" class="city-select" onchange="sehirDegisti()">
         <option value="Adana">Adana</option>
         <option value="Adiyaman">Adıyaman</option>
@@ -443,7 +431,6 @@
         <option value="Zonguldak">Zonguldak</option>
     </select>
 
-    <!-- Vakit Listesi -->
     <div class="vakit-cards">
         <div class="vakit-card" id="card-Fajr">
             <span class="vakit-isim">İmsak</span>
@@ -476,7 +463,6 @@
     </div>
 </div>
 
-<!-- iOS Bilgilendirme Modalı -->
 <div class="ios-modal" id="iosModal">
     <div class="ios-modal-content">
         <h3>iPhone İçin Bildirim Uyarısı</h3>
@@ -490,12 +476,21 @@
     let lastNotifiedPrayer = null;
 
     async function vakitleriGetir() {
-        const sehir = document.getElementById('sehir-secimi').value;
-        const url = `https://api.aladhan.com/v1/timingsByCity?city=${sehir}&country=Turkey&method=13`;
+        const sehirSelect = document.getElementById('sehir-secimi');
+        if (!sehirSelect) return;
+        
+        const sehir = sehirSelect.value;
+        const url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(sehir)}&country=Turkey&method=13`;
 
         try {
             const response = await fetch(url);
+            if (!response.ok) throw new Error('Ağ yanıtı başarısız');
+            
             const data = await response.json();
+            if (!data || !data.data || !data.data.timings) {
+                throw new Error('Geçersiz veri yapısı');
+            }
+
             const timings = data.data.timings;
 
             const bugun = new Date();
@@ -506,27 +501,37 @@
                 weekday: 'long'
             });
 
-            document.getElementById('tarih-bilgi').innerText = turkceTarih;
+            const tarihBilgiEl = document.getElementById('tarih-bilgi');
+            if (tarihBilgiEl) tarihBilgiEl.innerText = turkceTarih;
 
-            document.getElementById('Fajr').innerText = timings.Fajr;
-            document.getElementById('Sunrise').innerText = timings.Sunrise;
-            document.getElementById('Dhuhr').innerText = timings.Dhuhr;
-            document.getElementById('Asr').innerText = timings.Asr;
-            document.getElementById('Maghrib').innerText = timings.Maghrib;
-            document.getElementById('Isha').innerText = timings.Isha;
+            const setElText = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = val ? val.split(' ')[0] : '--:--';
+            };
+
+            setElText('Fajr', timings.Fajr);
+            setElText('Sunrise', timings.Sunrise);
+            setElText('Dhuhr', timings.Dhuhr);
+            setElText('Asr', timings.Asr);
+            setElText('Maghrib', timings.Maghrib);
+            setElText('Isha', timings.Isha);
 
             sayaciBaslat(timings);
 
         } catch (error) {
             console.error("Vakitler alınırken hata oluştu:", error);
-            document.getElementById('tarih-bilgi').innerText = "Veri alınamadı";
+            const tarihBilgiEl = document.getElementById('tarih-bilgi');
+            if (tarihBilgiEl) tarihBilgiEl.innerText = "Veri alınamadı, tekrar deneniyor...";
+            setTimeout(vakitleriGetir, 3000); // Hata olursa 3 saniye sonra tekrar dene
         }
     }
 
     function sehirDegisti() {
-        const secilenSehir = document.getElementById('sehir-secimi').value;
-        localStorage.setItem('user_city', secilenSehir);
-        vakitleriGetir();
+        const selectElement = document.getElementById('sehir-secimi');
+        if (selectElement) {
+            localStorage.setItem('user_city', selectElement.value);
+            vakitleriGetir();
+        }
     }
 
     function sayaciBaslat(timings) {
@@ -548,9 +553,11 @@
             document.querySelectorAll('.vakit-card').forEach(card => card.classList.remove('active'));
 
             for (let vakit of vakitListesi) {
-                const [saat, dakika] = vakit.time.split(':');
+                if (!vakit.time) continue;
+                const temizSaat = vakit.time.split(' ')[0];
+                const [saat, dakika] = temizSaat.split(':');
                 const vakitTarihi = new Date();
-                vakitTarihi.setHours(parseInt(saat), parseInt(dakika), 0, 0);
+                vakitTarihi.setHours(parseInt(saat, 10), parseInt(dakika, 10), 0, 0);
 
                 if (vakitTarihi > simdi) {
                     sonrakiVakit = { ...vakit, targetDate: vakitTarihi };
@@ -558,14 +565,17 @@
                 }
             }
 
-            if (!sonrakiVakit) {
-                const [saat, dakika] = timings.Fajr.split(':');
+            if (!sonrakiVakit && timings.Fajr) {
+                const temizSaat = timings.Fajr.split(' ')[0];
+                const [saat, dakika] = temizSaat.split(':');
                 const yarinkiImsak = new Date();
                 yarinkiImsak.setDate(yarinkiImsak.getDate() + 1);
-                yarinkiImsak.setHours(parseInt(saat), parseInt(dakika), 0, 0);
+                yarinkiImsak.setHours(parseInt(saat, 10), parseInt(dakika, 10), 0, 0);
 
                 sonrakiVakit = { id: 'Fajr', name: 'İmsak (Yarın)', targetDate: yarinkiImsak };
             }
+
+            if (!sonrakiVakit) return;
 
             const activeCard = document.getElementById(`card-${sonrakiVakit.id}`);
             if (activeCard) activeCard.classList.add('active');
@@ -590,9 +600,11 @@
 
             const format = (num) => String(num).padStart(2, '0');
 
-            document.getElementById('next-prayer-title').innerText = sonrakiVakit.name;
-            document.getElementById('countdown-timer').innerText = 
-                `${format(saatler)}:${format(dakikalar)}:${format(saniyeler)}`;
+            const nextTitleEl = document.getElementById('next-prayer-title');
+            const countdownEl = document.getElementById('countdown-timer');
+
+            if (nextTitleEl) nextTitleEl.innerText = sonrakiVakit.name;
+            if (countdownEl) countdownEl.innerText = `${format(saatler)}:${format(dakikalar)}:${format(saniyeler)}`;
         }
 
         guncelle();
@@ -618,7 +630,8 @@
         const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 
         if (isIOS && !isStandalone) {
-            document.getElementById('iosModal').style.display = 'flex';
+            const modal = document.getElementById('iosModal');
+            if (modal) modal.style.display = 'flex';
             return;
         }
 
@@ -640,10 +653,10 @@
     }
 
     function kapatIosModal() {
-        document.getElementById('iosModal').style.display = 'none';
+        const modal = document.getElementById('iosModal');
+        if (modal) modal.style.display = 'none';
     }
 
-    /* Tema Yönetimi */
     function toggleTheme() {
         const body = document.body;
         body.classList.toggle('light-mode');
@@ -665,7 +678,7 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', () => {
         const isLight = localStorage.getItem('theme') === 'light';
         if (isLight) {
             document.body.classList.add('light-mode');
