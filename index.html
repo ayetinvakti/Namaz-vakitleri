@@ -366,7 +366,7 @@
         <div class="next-prayer-name" id="next-prayer-title">Hesaplanıyor...</div>
         <div class="timer-display" id="countdown-timer">00:00:00</div>
 
-        <!-- Kerahat Bölümü Eklendi -->
+        <!-- Kerahat Bölümü -->
         <div class="kerahat-box">
             <div class="kerahat-subtitle" id="kerahat-title-text">Kerahat Vaktine Kalan Süre</div>
             <div class="kerahat-timer" id="kerahat-timer">00:00:00</div>
@@ -602,12 +602,13 @@
         ];
 
         const sunriseDate = parseTimeToday(timings.Sunrise.split(' ')[0]);
-        const dhuhrDate = parseTimeToday(timings.Dhuhr.split(' ')[0]);
-        const maghribDate = parseTimeToday(timings.Maghrib.split(' ')[0]);
-
         const sunriseKerahatEnd = addMinutes(sunriseDate, 45);
+
+        const dhuhrDate = parseTimeToday(timings.Dhuhr.split(' ')[0]);
         const dhuhrKerahatStart = subMinutes(dhuhrDate, 15);
-        const maghribKerahatStart = subMinutes(maghribDate, 45);
+
+        const maghribDate = parseTimeToday(timings.Maghrib.split(' ')[0]);
+        const maghribKerahatStart = subMinutes(maghribDate, 45); // Akşam kerahat başlangıcı (Akşamdan 45 dk önce)
 
         function guncelle() {
             const simdi = new Date();
@@ -656,20 +657,25 @@
             if (nextTitleEl) nextTitleEl.innerText = sonrakiVakit.name;
             if (countdownEl) countdownEl.innerText = `${format(saatler)}:${format(dakikalar)}:${format(saniyeler)}`;
 
-            // --- Kerahat Sayacı Güncelleme Mantığı ---
+            // --- Kesin Düzeltilmiş Kerahat Mantığı ---
             let kerahatTitleEl = document.getElementById('kerahat-title-text');
             let kerahatTimerEl = document.getElementById('kerahat-timer');
 
             if (simdi >= sunriseDate && simdi <= sunriseKerahatEnd) {
                 if (kerahatTitleEl) kerahatTitleEl.innerText = "Güneş Doğuş Kerahatinin Bitmesine";
                 if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(sunriseKerahatEnd - simdi);
-            } else if (simdi >= dhuhrKerahatStart && simdi <= dhuhrDate) {
+            } 
+            else if (simdi >= dhuhrKerahatStart && simdi <= dhuhrDate) {
                 if (kerahatTitleEl) kerahatTitleEl.innerText = "Öğle Kerahatinin Bitmesine";
                 if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(dhuhrDate - simdi);
-            } else if (simdi >= maghribKerahatStart && simdi <= maghribDate) {
+            } 
+            // Kerahat aktif burada: Akşam ezanına son 45 dakika kala
+            else if (simdi >= maghribKerahatStart && simdi <= maghribDate) {
                 if (kerahatTitleEl) kerahatTitleEl.innerText = "Akşam Kerahatinin Bitmesine";
                 if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(maghribDate - simdi);
-            } else {
+            } 
+            else {
+                // Kerahat vaktinde değilsek sıradaki kerahate kalan süreyi bul
                 let sonrakiKerahatZamani = null;
                 let sonrakiKerahatAdi = "";
 
