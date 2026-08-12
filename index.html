@@ -30,6 +30,7 @@
             --bg-color: #0f172a;
             --card-bg: #1e293b;
             --accent-color: #10b981;
+            --warning-color: #f59e0b;
             --text-color: #f8fafc;
             --text-muted: #94a3b8;
             --border-color: #334155;
@@ -154,6 +155,28 @@
             letter-spacing: 2px;
             font-family: monospace;
             color: var(--text-color);
+            margin-bottom: 12px;
+        }
+
+        /* Kerahat Alanı Entegrasyonu */
+        .kerahat-box {
+            border-top: 1px dashed var(--border-color);
+            padding-top: 12px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .kerahat-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .kerahat-timer {
+            font-size: 1.3rem;
+            font-weight: 700;
+            font-family: monospace;
+            color: var(--warning-color);
         }
 
         .city-select {
@@ -270,6 +293,7 @@
             --bg-color: #f8fafc;
             --card-bg: #ffffff;
             --accent-color: #059669;
+            --warning-color: #d97706;
             --text-color: #0f172a;
             --text-muted: #64748b;
             --border-color: #e2e8f0;
@@ -338,9 +362,15 @@
     </div>
 
     <div class="countdown-card">
-        <div class="countdown-title">Sonraki Vakit</div>
+        <div class="countdown-title" id="main-title">Sonraki Vakit</div>
         <div class="next-prayer-name" id="next-prayer-title">Hesaplanıyor...</div>
         <div class="timer-display" id="countdown-timer">00:00:00</div>
+
+        <!-- Kerahat Bölümü Eklendi -->
+        <div class="kerahat-box">
+            <div class="kerahat-subtitle" id="kerahat-title-text">Kerahat Vaktine Kalan Süre</div>
+            <div class="kerahat-timer" id="kerahat-timer">00:00:00</div>
+        </div>
     </div>
 
     <button class="notification-btn" onclick="bildirimIzniAta()">
@@ -522,7 +552,7 @@
             console.error("Vakitler alınırken hata oluştu:", error);
             const tarihBilgiEl = document.getElementById('tarih-bilgi');
             if (tarihBilgiEl) tarihBilgiEl.innerText = "Veri alınamadı, tekrar deneniyor...";
-            setTimeout(vakitleriGetir, 3000); // Hata olursa 3 saniye sonra tekrar dene
+            setTimeout(vakitleriGetir, 3000);
         }
     }
 
@@ -534,17 +564,50 @@
         }
     }
 
+    function parseTimeToday(timeStr) {
+        const [h, m] = timeStr.split(':').map(Number);
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        return d;
+    }
+
+    function addMinutes(dateObj, mins) {
+        return new Date(dateObj.getTime() + mins * 60000);
+    }
+
+    function subMinutes(dateObj, mins) {
+        return new Date(dateObj.getTime() - mins * 60000);
+    }
+
+    function formatTimeLeft(ms) {
+        if (ms <= 0) return "00:00:00";
+        const totalSec = Math.floor(ms / 1000);
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    }
+
     function sayaciBaslat(timings) {
         if (timerInterval) clearInterval(timerInterval);
 
         const vakitListesi = [
-            { id: 'Fajr', name: 'İmsak', time: timings.Fajr },
-            { id: 'Sunrise', name: 'Güneş', time: timings.Sunrise },
-            { id: 'Dhuhr', name: 'Öğle', time: timings.Dhuhr },
-            { id: 'Asr', name: 'İkindi', time: timings.Asr },
-            { id: 'Maghrib', name: 'Akşam', time: timings.Maghrib },
-            { id: 'Isha', name: 'Yatsı', time: timings.Isha }
+            { id: 'Fajr', name: 'İmsak', time: parseTimeToday(timings.Fajr.split(' ')[0]) },
+            { id: 'Sunrise', name: 'Güneş', time: parseTimeToday(timings.Sunrise.split(' ')[0]) },
+            { id: 'Dhuhr', name: 'Öğle', time: parseTimeToday(timings.Dhuhr.split(' ')[0]) },
+            { id: 'Asr', name: 'İkindi', time: parseTimeToday(timings.Asr.split(' ')[0]) },
+            { id: 'Maghrib', name: 'Akşam', time: parseTimeToday(timings.Maghrib.split(' ')[0]) },
+            { id: 'Isha', name: 'Yatsı', time: parseTimeToday(timings.Isha.split(' ')[0]) }
         ];
+
+        const sunriseDate = parseTimeToday(timings.Sunrise.split(' ')[0]);
+        const dhuhrDate = parseTimeToday(timings.Dhuhr.split(' ')[0]);
+        const maghribDate = parseTimeToday(timings.Maghrib.split(' ')[0]);
+
+        const sunriseKerahatEnd = addMinutes(sunriseDate, 45);
+        const dhuhrKerahatStart = subMinutes(dhuhrDate, 15);
+        const maghribKerahatStart = subMinutes(maghribDate, 45);
 
         function guncelle() {
             const simdi = new Date();
@@ -553,41 +616,28 @@
             document.querySelectorAll('.vakit-card').forEach(card => card.classList.remove('active'));
 
             for (let vakit of vakitListesi) {
-                if (!vakit.time) continue;
-                const temizSaat = vakit.time.split(' ')[0];
-                const [saat, dakika] = temizSaat.split(':');
-                const vakitTarihi = new Date();
-                vakitTarihi.setHours(parseInt(saat, 10), parseInt(dakika, 10), 0, 0);
-
-                if (vakitTarihi > simdi) {
-                    sonrakiVakit = { ...vakit, targetDate: vakitTarihi };
+                if (vakit.time > simdi) {
+                    sonrakiVakit = vakit;
                     break;
                 }
             }
 
-            if (!sonrakiVakit && timings.Fajr) {
-                const temizSaat = timings.Fajr.split(' ')[0];
-                const [saat, dakika] = temizSaat.split(':');
-                const yarinkiImsak = new Date();
-                yarinkiImsak.setDate(yarinkiImsak.getDate() + 1);
-                yarinkiImsak.setHours(parseInt(saat, 10), parseInt(dakika, 10), 0, 0);
-
-                sonrakiVakit = { id: 'Fajr', name: 'İmsak (Yarın)', targetDate: yarinkiImsak };
+            if (!sonrakiVakit) {
+                const yarinkiImsak = addMinutes(parseTimeToday(timings.Fajr.split(' ')[0]), 24 * 60);
+                sonrakiVakit = { id: 'Fajr', name: 'İmsak (Yarın)', time: yarinkiImsak };
             }
-
-            if (!sonrakiVakit) return;
 
             const activeCard = document.getElementById(`card-${sonrakiVakit.id}`);
             if (activeCard) activeCard.classList.add('active');
 
-            const fark = sonrakiVakit.targetDate - simdi;
+            const fark = sonrakiVakit.time - simdi;
             const totalSeconds = Math.floor(fark / 1000);
 
             const reminderMinutes = parseInt(localStorage.getItem('prayer_reminder_time') || '10', 10);
             const reminderSeconds = reminderMinutes * 60;
 
             if (totalSeconds <= reminderSeconds && totalSeconds > (reminderSeconds - 2)) {
-                const notificationKey = `${sonrakiVakit.name}-${sonrakiVakit.targetDate.toDateString()}`;
+                const notificationKey = `${sonrakiVakit.name}-${sonrakiVakit.time.toDateString()}`;
                 if (lastNotifiedPrayer !== notificationKey) {
                     lastNotifiedPrayer = notificationKey;
                     triggerPrayerNotification(sonrakiVakit.name, reminderMinutes);
@@ -605,6 +655,41 @@
 
             if (nextTitleEl) nextTitleEl.innerText = sonrakiVakit.name;
             if (countdownEl) countdownEl.innerText = `${format(saatler)}:${format(dakikalar)}:${format(saniyeler)}`;
+
+            // --- Kerahat Sayacı Güncelleme Mantığı ---
+            let kerahatTitleEl = document.getElementById('kerahat-title-text');
+            let kerahatTimerEl = document.getElementById('kerahat-timer');
+
+            if (simdi >= sunriseDate && simdi <= sunriseKerahatEnd) {
+                if (kerahatTitleEl) kerahatTitleEl.innerText = "Güneş Doğuş Kerahatinin Bitmesine";
+                if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(sunriseKerahatEnd - simdi);
+            } else if (simdi >= dhuhrKerahatStart && simdi <= dhuhrDate) {
+                if (kerahatTitleEl) kerahatTitleEl.innerText = "Öğle Kerahatinin Bitmesine";
+                if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(dhuhrDate - simdi);
+            } else if (simdi >= maghribKerahatStart && simdi <= maghribDate) {
+                if (kerahatTitleEl) kerahatTitleEl.innerText = "Akşam Kerahatinin Bitmesine";
+                if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(maghribDate - simdi);
+            } else {
+                let sonrakiKerahatZamani = null;
+                let sonrakiKerahatAdi = "";
+
+                if (simdi < sunriseDate) {
+                    sonrakiKerahatZamani = sunriseDate;
+                    sonrakiKerahatAdi = "Güneş Doğuş Kerahat Vaktine";
+                } else if (simdi > sunriseKerahatEnd && simdi < dhuhrKerahatStart) {
+                    sonrakiKerahatZamani = dhuhrKerahatStart;
+                    sonrakiKerahatAdi = "Öğle Kerahat Vaktine";
+                } else if (simdi > dhuhrDate && simdi < maghribKerahatStart) {
+                    sonrakiKerahatZamani = maghribKerahatStart;
+                    sonrakiKerahatAdi = "Akşam Kerahat Vaktine";
+                } else {
+                    sonrakiKerahatZamani = addMinutes(sunriseDate, 24 * 60);
+                    sonrakiKerahatAdi = "Güneş Doğuş Kerahat Vaktine";
+                }
+
+                if (kerahatTitleEl) kerahatTitleEl.innerText = `Sonraki ${sonrakiKerahatAdi}`;
+                if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(sonrakiKerahatZamani - simdi);
+            }
         }
 
         guncelle();
