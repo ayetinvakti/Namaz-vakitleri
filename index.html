@@ -158,7 +158,6 @@
             margin-bottom: 12px;
         }
 
-        /* Kerahat Alanı Entegrasyonu */
         .kerahat-box {
             border-top: 1px dashed var(--border-color);
             padding-top: 12px;
@@ -366,7 +365,6 @@
         <div class="next-prayer-name" id="next-prayer-title">Hesaplanıyor...</div>
         <div class="timer-display" id="countdown-timer">00:00:00</div>
 
-        <!-- Kerahat Bölümü -->
         <div class="kerahat-box">
             <div class="kerahat-subtitle" id="kerahat-title-text">Kerahat Vaktine Kalan Süre</div>
             <div class="kerahat-timer" id="kerahat-timer">00:00:00</div>
@@ -608,7 +606,7 @@
         const dhuhrKerahatStart = subMinutes(dhuhrDate, 15);
 
         const maghribDate = parseTimeToday(timings.Maghrib.split(' ')[0]);
-        const maghribKerahatStart = subMinutes(maghribDate, 45); // Akşam kerahat başlangıcı (Akşamdan 45 dk önce)
+        const maghribKerahatStart = subMinutes(maghribDate, 45);
 
         function guncelle() {
             const simdi = new Date();
@@ -657,7 +655,6 @@
             if (nextTitleEl) nextTitleEl.innerText = sonrakiVakit.name;
             if (countdownEl) countdownEl.innerText = `${format(saatler)}:${format(dakikalar)}:${format(saniyeler)}`;
 
-            // --- Kesin Düzeltilmiş Kerahat Mantığı ---
             let kerahatTitleEl = document.getElementById('kerahat-title-text');
             let kerahatTimerEl = document.getElementById('kerahat-timer');
 
@@ -669,13 +666,11 @@
                 if (kerahatTitleEl) kerahatTitleEl.innerText = "Öğle Kerahatinin Bitmesine";
                 if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(dhuhrDate - simdi);
             } 
-            // Kerahat aktif burada: Akşam ezanına son 45 dakika kala
             else if (simdi >= maghribKerahatStart && simdi <= maghribDate) {
                 if (kerahatTitleEl) kerahatTitleEl.innerText = "Akşam Kerahatinin Bitmesine";
                 if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(maghribDate - simdi);
             } 
             else {
-                // Kerahat vaktinde değilsek sıradaki kerahate kalan süreyi bul
                 let sonrakiKerahatZamani = null;
                 let sonrakiKerahatAdi = "";
 
@@ -704,8 +699,8 @@
 
     function triggerPrayerNotification(prayerName, minutes) {
         let msg = minutes === 0 
-            ? `${prayerName} vakti girdi!` 
-            : `${prayerName} vaktine ${minutes} dakika kaldı!`;
+            ? `${prayerName} vaktine erişildi, hayırlı ibadetler.` 
+            : `${prayerName} vaktine yaklaşılıyor, hazırlık vaktidir.`;
 
         if ("Notification" in window && Notification.permission === "granted") {
             new Notification("Ayetin Vakti", {
@@ -734,7 +729,7 @@
         Notification.requestPermission().then((permission) => {
             if (permission === 'granted') {
                 new Notification('Ayetin Vakti', {
-                    body: 'Namaz vakti bildirimleri başarıyla açıldı!',
+                    body: 'Namaz vakti hatırlatıcıları aktif edildi, hayırlı olsun.',
                     icon: 'https://ayetinvakti.github.io/favicon.ico'
                 });
             } else {
