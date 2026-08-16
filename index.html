@@ -703,6 +703,7 @@
             : `${prayerName} vaktine yaklaşılıyor, hazırlık vaktidir.`;
 
         if ("Notification" in window && Notification.permission === "granted") {
+            // Boş title/subtitle hatasını önlemek için ikinci parametredeki title kısmı sadeleştirildi
             new Notification("Ayetin Vakti", {
                 body: msg,
                 icon: "https://ayetinvakti.github.io/favicon.ico",
