@@ -25,15 +25,13 @@
         if (savedText) document.documentElement.style.setProperty('--text-color', savedText);
 
         const currentLang = localStorage.getItem('user_lang') || 'tr';
-        if (currentLang === 'ar') {
-            document.documentElement.setAttribute('dir', 'rtl');
-        } else {
-            document.documentElement.setAttribute('dir', 'ltr');
-        }
+        document.documentElement.setAttribute('lang', currentLang);
+        document.documentElement.setAttribute('dir', currentLang === 'ar' ? 'rtl' : 'ltr');
     </script>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- DÜZELTME: Yakınlaştırmayı engelleyen maximum-scale / user-scalable=no kaldırıldı -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="page_title">Canlı Namaz Vakitleri | Ayetin Vakti</title>
     
     <meta property="og:title" content="Namaz Vakitleri | Ayetin Vakti">
@@ -258,12 +256,25 @@
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            margin-bottom: 20px;
+            margin-bottom: 8px;
             transition: all 0.3s ease;
         }
 
         .notification-btn:hover {
             background-color: rgba(16, 185, 129, 0.1);
+        }
+
+        .notification-btn.on {
+            border-style: solid;
+            background-color: rgba(16, 185, 129, 0.12);
+        }
+
+        .notif-note {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.4;
+            margin-bottom: 20px;
         }
 
         .ios-modal {
@@ -316,7 +327,8 @@
             color: var(--text-muted);
         }
 
-        body.light-mode {
+        /* DÜZELTME: Tema sınıfı <html> üzerinde olduğu için seçiciler html.light-mode yapıldı */
+        html.light-mode {
             --bg-color: #f8fafc;
             --card-bg: #ffffff;
             --accent-color: #059669;
@@ -326,49 +338,57 @@
             --border-color: #e2e8f0;
             --btn-bg: #f1f5f9;
             --btn-hover: #e2e8f0;
+        }
+
+        html.light-mode body {
             background-color: #f8fafc !important;
         }
 
-        body.light-mode .header h1 {
+        html.light-mode .header h1 {
             color: #059669 !important;
         }
 
-        body.light-mode .countdown-card {
+        html.light-mode .countdown-card {
             background: #ffffff !important;
             border-color: #10b981 !important;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
         }
 
-        body.light-mode .countdown-title {
+        html.light-mode .countdown-title {
             color: #64748b !important;
         }
 
-        body.light-mode .next-prayer-name {
+        html.light-mode .next-prayer-name {
             color: #059669 !important;
         }
 
-        body.light-mode .timer-display {
+        html.light-mode .timer-display {
             color: #0f172a !important;
         }
 
-        body.light-mode .vakit-card,
-        body.light-mode .notification-btn,
-        body.light-mode .ios-modal-content,
-        body.light-mode .city-select {
+        html.light-mode .vakit-card,
+        html.light-mode .notification-btn,
+        html.light-mode .ios-modal-content,
+        html.light-mode .city-select {
             background-color: #ffffff !important;
             border-color: #e2e8f0 !important;
             color: #1e293b !important;
         }
 
-        body.light-mode .ios-modal-content p {
+        html.light-mode .notification-btn.on {
+            background-color: #ecfdf5 !important;
+            border-color: #10b981 !important;
+        }
+
+        html.light-mode .ios-modal-content p {
             color: #64748b !important;
         }
 
-        body.light-mode .vakit-saat {
+        html.light-mode .vakit-saat {
             color: #059669 !important;
         }
 
-        body.light-mode .vakit-card.active {
+        html.light-mode .vakit-card.active {
             background-color: #ecfdf5 !important;
             border-color: #10b981 !important;
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.2) !important;
@@ -399,9 +419,10 @@
         </div>
     </div>
 
-    <button class="notification-btn" onclick="bildirimIzniAta()">
-        <span>🔔</span> <span data-i18n="notif_btn">Vakit Bildirimlerini Aç</span>
+    <button class="notification-btn" id="notif-btn" onclick="bildirimIzniAta()">
+        <span>🔔</span> <span id="notif-label" data-i18n="notif_btn">Vakit Bildirimlerini Aç</span>
     </button>
+    <div class="notif-note" data-i18n="notif_note">Bildirimler, uygulama açıkken veya arka planda canlı kaldığı sürece gönderilir.</div>
 
     <select id="sehir-secimi" class="city-select" onchange="sehirDegisti()">
         <option value="Adana">Adana</option>
@@ -528,16 +549,29 @@
 </div>
 
 <script>
-    // Dil Sözlüğü
+    // ===================== AYARLAR (vakit hassasiyeti için tek merkez) =====================
+    // Vakitler Aladhan API'sinin "Diyanet İşleri Başkanlığı" yöntemiyle (method=13) alınır.
+    // ÖNEMLİ: Diyanet'in "İmsak" vakti = Aladhan'ın "Fajr" alanıdır.
+    // (Aladhan'ın ayrı "Imsak" alanı Fajr'dan 10 dk ÖNCEDİR, bu yüzden kullanılmaz.)
+    // Resmi Diyanet tablosuyla bir sapma görürseniz yalnızca buradaki dakikaları düzeltin.
+    const TUNE = { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 };
+
+    // Kerahat süreleri (dakika) - Diyanet: sabah ~40-50 dk, istiva ~10 dk, akşam ~40-50 dk
+    const KERAHAT = { sunriseAfter: 45, dhuhrBefore: 10, maghribBefore: 45 };
+
+    // ===================== DİL SÖZLÜĞÜ =====================
     const translations = {
         tr: {
             page_title: "Canlı Namaz Vakitleri | Ayetin Vakti",
             main_title: "Namaz Vakitleri",
             loading: "Yükleniyor...",
+            err_load: "Vakitler alınamadı, yeniden deneniyor...",
             next_prayer_title: "Sonraki Vakit",
             calculating: "Hesaplanıyor...",
             kerahat_subtitle: "Kerahat Vaktine Kalan Süre",
             notif_btn: "Vakit Bildirimlerini Aç",
+            notif_btn_on: "Bildirimler Açık ✓ (kapatmak için dokunun)",
+            notif_note: "Bildirimler, uygulama açıkken veya arka planda canlı kaldığı sürece gönderilir.",
             p_fajr: "İmsak",
             p_sunrise: "Güneş",
             p_dhuhr: "Öğle",
@@ -557,16 +591,22 @@
             kerahat_next_maghrib: "Sonraki Akşam Kerahat Vaktine",
             notif_alert_unsupported: "Bu tarayıcı bildirimleri desteklemiyor.",
             notif_success_body: "Namaz vakti hatırlatıcıları aktif edildi, hayırlı olsun.",
-            notif_denied_alert: "Bildirim izni verilmedi. Cihaz ayarlarından izin verebilirsiniz."
+            notif_denied_alert: "Bildirim izni verilmedi. Cihaz ayarlarından izin verebilirsiniz.",
+            notif_off_body: "Vakit bildirimleri kapatıldı.",
+            notif_before: "{name} vaktine {min} dakika kaldı.",
+            notif_now: "{name} vakti girdi, hayırlı ibadetler."
         },
         en: {
             page_title: "Live Prayer Times | Ayetin Vakti",
             main_title: "Prayer Times",
             loading: "Loading...",
+            err_load: "Could not load times, retrying...",
             next_prayer_title: "Next Prayer",
             calculating: "Calculating...",
             kerahat_subtitle: "Time Left for Makruh Time",
             notif_btn: "Enable Prayer Notifications",
+            notif_btn_on: "Notifications On ✓ (tap to turn off)",
+            notif_note: "Notifications are sent while the app is open or kept alive in the background.",
             p_fajr: "Fajr",
             p_sunrise: "Sunrise",
             p_dhuhr: "Dhuhr",
@@ -586,16 +626,22 @@
             kerahat_next_maghrib: "Time Left to Next Maghrib Makruh",
             notif_alert_unsupported: "This browser does not support notifications.",
             notif_success_body: "Prayer time reminders enabled, enjoy!",
-            notif_denied_alert: "Notification permission denied. You can enable it from device settings."
+            notif_denied_alert: "Notification permission denied. You can enable it from device settings.",
+            notif_off_body: "Prayer notifications turned off.",
+            notif_before: "{min} min left until {name}.",
+            notif_now: "It is time for {name}."
         },
         ar: {
             page_title: "أوقات الصلاة الحية | آية الوقت",
             main_title: "أوقات الصلاة",
             loading: "جاري التحميل...",
+            err_load: "تعذر تحميل الأوقات، جارٍ إعادة المحاولة...",
             next_prayer_title: "الصلاة القادمة",
             calculating: "جاري الحساب...",
             kerahat_subtitle: "الوقت المتبقي للوقت المكروه",
             notif_btn: "تفعيل إشعارات أوقات الصلاة",
+            notif_btn_on: "الإشعارات مفعّلة ✓ (اضغط للإيقاف)",
+            notif_note: "تُرسل الإشعارات أثناء فتح التطبيق أو بقائه نشطًا في الخلفية.",
             p_fajr: "الفجر",
             p_sunrise: "الشروق",
             p_dhuhr: "الظهر",
@@ -615,226 +661,395 @@
             kerahat_next_maghrib: "الوقت المتبقي لكراهة المغرب القادمة",
             notif_alert_unsupported: "هذا المتصفح لا يدعم الإشعارات.",
             notif_success_body: "تم تفعيل تذكيرات أوقات الصلاة بنجاح.",
-            notif_denied_alert: "تم رفض إذن الإشعارات. يمكنك تفعيله من إعدادات الجهاز."
+            notif_denied_alert: "تم رفض إذن الإشعارات. يمكنك تفعيله من إعدادات الجهاز.",
+            notif_off_body: "تم إيقاف إشعارات الصلاة.",
+            notif_before: "باقي {min} دقيقة على {name}.",
+            notif_now: "حان الآن وقت {name}."
         }
     };
 
-    const activeLang = localStorage.getItem('user_lang') || 'tr';
-    const t = translations[activeLang] || translations['tr'];
+    const activeLang = translations[localStorage.getItem('user_lang')] ? localStorage.getItem('user_lang') : 'tr';
+    const t = translations[activeLang];
 
-    let timerInterval = null;
-    let lastNotifiedPrayer = null;
+    // <PURE>
+    // ===================== ZAMAN YARDIMCILARI (cihaz saat diliminden bağımsız, Türkiye = UTC+3) =====================
+    const TR_OFFSET_MS = 3 * 3600 * 1000;      // Türkiye 2016'dan beri sabit UTC+3 (yaz/kış saati yok)
+    const PRAYER_ORDER = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
-    async function vakitleriGetir() {
-        const sehirSelect = document.getElementById('sehir-secimi');
-        if (!sehirSelect) return;
-        
-        const sehir = sehirSelect.value;
-        const url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(sehir)}&country=Turkey&method=13`;
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function trYMD(ms) {
+        const d = new Date(ms + TR_OFFSET_MS);
+        return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
+    }
+
+    function ymdStr(o) { return `${o.y}-${pad2(o.m)}-${pad2(o.d)}`; }
+
+    function addDays(o, n) {
+        const d = new Date(Date.UTC(o.y, o.m - 1, o.d) + n * 86400000);
+        return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
+    }
+
+    // "05:09" (Türkiye saati) -> epoch ms
+    function toEpoch(o, hhmm) {
+        const m = String(hhmm).match(/(\d{1,2}):(\d{2})/);
+        if (!m) return NaN;
+        return Date.UTC(o.y, o.m - 1, o.d, parseInt(m[1], 10), parseInt(m[2], 10), 0) - TR_OFFSET_MS;
+    }
+
+    // Türkçe karakter/şapka/büyük-küçük harf farkını yok sayan karşılaştırma anahtarı
+    function normCity(str) {
+        return String(str || '').toLocaleLowerCase('tr')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/ı/g, 'i').replace(/[^a-z0-9]/g, '');
+    }
+
+    // Günün vakitlerinden (epoch) kerahat pencerelerini üretir
+    function kerahatWindows(epochs, dayStr) {
+        const min = 60000;
+        return [
+            { type: 'sunrise', start: epochs.Sunrise, end: epochs.Sunrise + KERAHAT.sunriseAfter * min, dayStr },
+            { type: 'dhuhr',   start: epochs.Dhuhr - KERAHAT.dhuhrBefore * min, end: epochs.Dhuhr, dayStr },
+            { type: 'maghrib', start: epochs.Maghrib - KERAHAT.maghribBefore * min, end: epochs.Maghrib, dayStr }
+        ];
+    }
+    // </PURE>
+
+    function formatHMS(ms) {
+        const total = Math.max(0, Math.ceil(ms / 1000));
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+    }
+
+    // ===================== DURUM =====================
+    const state = {
+        apiCity: 'Erzincan',
+        today: null,       // { ymd, str, timings, epochs }
+        tomorrow: null,
+        renderedStr: null,
+        loading: false,
+        seq: 0,
+        retryMs: 3000,
+        retryTimer: null,
+        lastTomorrowTry: 0
+    };
+
+    function tuneSignature() {
+        return [TUNE.fajr, TUNE.sunrise, TUNE.dhuhr, TUNE.asr, TUNE.maghrib, TUNE.isha].join(',');
+    }
+
+    function tuneQuery() {
+        const sig = tuneSignature();
+        if (sig === '0,0,0,0,0,0') return '';
+        // Aladhan sırası: imsak,fajr,sunrise,dhuhr,asr,maghrib,sunset,isha,midnight
+        return `&tune=0,${TUNE.fajr},${TUNE.sunrise},${TUNE.dhuhr},${TUNE.asr},${TUNE.maghrib},0,${TUNE.isha},0`;
+    }
+
+    // ===================== VAKİT ÇEKME (önbellekli) =====================
+    function pruneCache(todayStr) {
+        const keep = ymdStr(addDays(trYMD(Date.now()), -1));
+        try {
+            Object.keys(localStorage).forEach(k => {
+                if (k.startsWith('pv2_')) {
+                    const m = k.match(/_(\d{4}-\d{2}-\d{2})_/);
+                    if (m && m[1] < keep) localStorage.removeItem(k);
+                }
+                if (k.startsWith('pv_notified_')) {
+                    const m = k.match(/_(\d{4}-\d{2}-\d{2})_/);
+                    if (m && m[1] < keep) localStorage.removeItem(k);
+                }
+            });
+        } catch (e) { /* yok say */ }
+    }
+
+    async function getDay(apiCity, ymd) {
+        const str = ymdStr(ymd);
+        const key = `pv2_${apiCity}_${str}_${tuneSignature()}`;
 
         try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Ağ yanıtı başarısız');
-            
-            const data = await response.json();
-            if (!data || !data.data || !data.data.timings) {
-                throw new Error('Geçersiz veri yapısı');
+            const cached = JSON.parse(localStorage.getItem(key) || 'null');
+            if (cached && PRAYER_ORDER.every(id => /^\d{1,2}:\d{2}$/.test(cached[id] || ''))) {
+                return buildDay(ymd, cached);
             }
+        } catch (e) { /* önbellek bozuksa ağdan al */ }
 
-            const timings = data.data.timings;
+        const url = `https://api.aladhan.com/v1/timingsByCity/${pad2(ymd.d)}-${pad2(ymd.m)}-${ymd.y}` +
+                    `?city=${encodeURIComponent(apiCity)}&country=Turkey&method=13${tuneQuery()}`;
 
-            const bugun = new Date();
-            const localeMap = { tr: 'tr-TR', en: 'en-US', ar: 'ar-SA' };
-            const turkceTarih = bugun.toLocaleDateString(localeMap[activeLang] || 'tr-TR', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-                weekday: 'long'
-            });
+        const ctrl = new AbortController();
+        const timeoutId = setTimeout(() => ctrl.abort(), 10000);
+        let json;
+        try {
+            const res = await fetch(url, { signal: ctrl.signal });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            json = await res.json();
+        } finally {
+            clearTimeout(timeoutId);
+        }
 
-            const tarihBilgiEl = document.getElementById('tarih-bilgi');
-            if (tarihBilgiEl) tarihBilgiEl.innerText = turkceTarih;
+        const raw = json && json.data && json.data.timings;
+        if (!raw) throw new Error('Geçersiz veri yapısı');
 
-            const setElText = (id, val) => {
-                const el = document.getElementById(id);
-                if (el) el.innerText = val ? val.split(' ')[0] : '--:--';
-            };
+        const timings = {};
+        PRAYER_ORDER.forEach(id => {
+            const m = String(raw[id] || '').match(/(\d{1,2}):(\d{2})/);
+            if (!m) throw new Error('Eksik vakit: ' + id);
+            timings[id] = `${pad2(parseInt(m[1], 10))}:${m[2]}`;
+        });
 
-            setElText('Fajr', timings.Fajr);
-            setElText('Sunrise', timings.Sunrise);
-            setElText('Dhuhr', timings.Dhuhr);
-            setElText('Asr', timings.Asr);
-            setElText('Maghrib', timings.Maghrib);
-            setElText('Isha', timings.Isha);
+        try { localStorage.setItem(key, JSON.stringify(timings)); } catch (e) { /* kota dolu olabilir */ }
+        return buildDay(ymd, timings);
+    }
 
-            sayaciBaslat(timings);
+    function buildDay(ymd, timings) {
+        const epochs = {};
+        PRAYER_ORDER.forEach(id => { epochs[id] = toEpoch(ymd, timings[id]); });
+        return { ymd, str: ymdStr(ymd), timings, epochs };
+    }
 
-        } catch (error) {
-            console.error("Vakitler alınırken hata oluştu:", error);
-            const tarihBilgiEl = document.getElementById('tarih-bilgi');
-            if (tarihBilgiEl) tarihBilgiEl.innerText = t.loading;
-            setTimeout(vakitleriGetir, 3000);
+    async function loadTimes() {
+        if (state.loading) return;
+        state.loading = true;
+        const mySeq = ++state.seq;
+        clearTimeout(state.retryTimer);
+
+        try {
+            const today = trYMD(Date.now());
+            pruneCache();
+            const todayDay = await getDay(state.apiCity, today);
+            if (mySeq !== state.seq) return;          // şehir arada değiştiyse eski yanıtı at
+
+            state.today = todayDay;
+            state.tomorrow = null;
+            state.renderedStr = null;
+            state.retryMs = 3000;
+            tick();
+
+            try {
+                const tmr = await getDay(state.apiCity, addDays(today, 1));
+                if (mySeq === state.seq) state.tomorrow = tmr;
+            } catch (e) {
+                console.log('Yarının vakitleri alınamadı:', e);
+            }
+        } catch (err) {
+            if (mySeq !== state.seq) return;
+            console.error('Vakitler alınırken hata oluştu:', err);
+            if (!state.today) {
+                const el = document.getElementById('tarih-bilgi');
+                if (el) el.innerText = t.err_load;
+            }
+            // Üstel geri çekilme: 3sn, 6sn, 12sn ... en fazla 60sn
+            state.retryTimer = setTimeout(loadTimes, state.retryMs);
+            state.retryMs = Math.min(state.retryMs * 2, 60000);
+        } finally {
+            state.loading = false;
         }
     }
 
     function sehirDegisti() {
-        const selectElement = document.getElementById('sehir-secimi');
-        if (selectElement) {
-            localStorage.setItem('user_city', selectElement.value);
-            vakitleriGetir();
+        const sel = document.getElementById('sehir-secimi');
+        if (!sel) return;
+        const opt = sel.options[sel.selectedIndex];
+        // Türkçe adı kaydet: diğer sayfalarla (ana sayfa vb.) aynı biçim
+        localStorage.setItem('user_city', opt.text);
+        state.apiCity = sel.value;
+        state.today = null; state.tomorrow = null; state.renderedStr = null;
+        state.loading = false;
+        state.seq++;
+        const el = document.getElementById('tarih-bilgi');
+        if (el) el.innerText = t.loading;
+        ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].forEach(id => {
+            const c = document.getElementById(id); if (c) c.innerText = '--:--';
+        });
+        loadTimes();
+    }
+
+    // ===================== EKRANI GÜNCELLE =====================
+    function renderDay(day) {
+        PRAYER_ORDER.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = day.timings[id];
+        });
+        const localeMap = { tr: 'tr-TR', en: 'en-US', ar: 'ar-SA' };
+        const el = document.getElementById('tarih-bilgi');
+        if (el) {
+            el.innerText = new Date(Date.UTC(day.ymd.y, day.ymd.m - 1, day.ymd.d, 12)).toLocaleDateString(
+                localeMap[activeLang] || 'tr-TR',
+                { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long', timeZone: 'UTC' }
+            );
+        }
+        state.renderedStr = day.str;
+    }
+
+    function allDays() {
+        return [state.today, state.tomorrow].filter(Boolean);
+    }
+
+    function tick() {
+        if (!state.today) return;
+        const now = Date.now();
+        const todayStr = ymdStr(trYMD(now));
+
+        // Gece yarısı: vakitler yenilenir; yeni veri gelene kadar "yarın" verisi bugünü temsil eder
+        if (todayStr !== state.today.str && !state.loading) {
+            loadTimes();
+        }
+        if (!state.tomorrow && state.today && now - state.lastTomorrowTry > 60000 && !state.loading) {
+            state.lastTomorrowTry = now;
+            getDay(state.apiCity, addDays(state.today.ymd, 1)).then(d => { state.tomorrow = d; }).catch(() => {});
+        }
+
+        const days = allDays();
+        const shownDay = days.find(d => d.str === todayStr) || state.today;
+        if (state.renderedStr !== shownDay.str) renderDay(shownDay);
+
+        // ---- Sonraki vakit ----
+        const events = [];
+        days.forEach(d => PRAYER_ORDER.forEach(id => events.push({ id, time: d.epochs[id], dayStr: d.str })));
+        events.sort((a, b) => a.time - b.time);
+
+        let next = events.find(e => e.time > now);
+        if (!next) {
+            // Yarının verisi yoksa en kötü ihtimalle bugünün imsakı + 24 sa (yaklaşık)
+            const last = days[days.length - 1];
+            next = { id: 'Fajr', time: last.epochs.Fajr + 86400000, dayStr: ymdStr(addDays(last.ymd, 1)) };
+        }
+
+        document.querySelectorAll('.vakit-card').forEach(c => c.classList.remove('active'));
+        const activeCard = document.getElementById(`card-${next.id}`);
+        if (activeCard) activeCard.classList.add('active');
+
+        const nextName = (next.id === 'Fajr' && next.dayStr !== todayStr)
+            ? t.p_fajr_tomorrow
+            : t['p_' + next.id.toLowerCase()];
+        const nameEl = document.getElementById('next-prayer-title');
+        const timerEl = document.getElementById('countdown-timer');
+        if (nameEl) nameEl.innerText = nextName;
+        if (timerEl) timerEl.innerText = formatHMS(next.time - now);
+
+        // ---- Kerahat ----
+        const windows = [];
+        days.forEach(d => kerahatWindows(d.epochs, d.str).forEach(w => windows.push(w)));
+        windows.sort((a, b) => a.start - b.start);
+
+        const kTitleEl = document.getElementById('kerahat-title-text');
+        const kTimerEl = document.getElementById('kerahat-timer');
+        const active = windows.find(w => now >= w.start && now < w.end);
+        if (active) {
+            if (kTitleEl) kTitleEl.innerText = t['kerahat_' + active.type + '_end'];
+            if (kTimerEl) kTimerEl.innerText = formatHMS(active.end - now);
+        } else {
+            let upcoming = windows.find(w => w.start > now);
+            if (!upcoming) {
+                // Yarın verisi yoksa, bugünün sabah kerahatinin +24 sa karşılığı (yaklaşık)
+                const last = days[days.length - 1];
+                upcoming = { type: 'sunrise', start: last.epochs.Sunrise + 86400000 };
+            }
+            if (kTitleEl) kTitleEl.innerText = t['kerahat_next_' + upcoming.type];
+            if (kTimerEl) kTimerEl.innerText = formatHMS(upcoming.start - now);
+        }
+
+        checkReminders(now, events);
+    }
+
+    // ===================== BİLDİRİMLER =====================
+    let swPromise = null;
+    function getSW() {
+        if (swPromise) return swPromise;
+        swPromise = (async () => {
+            if (!('serviceWorker' in navigator)) return null;
+            try {
+                let reg = await navigator.serviceWorker.getRegistration('/');
+                if (!reg) reg = await navigator.serviceWorker.register('/sw.js');
+                return await Promise.race([
+                    navigator.serviceWorker.ready,
+                    new Promise(r => setTimeout(() => r(null), 4000))
+                ]);
+            } catch (e) {
+                return null;
+            }
+        })();
+        return swPromise;
+    }
+
+    // DÜZELTME: Android Chrome ve iOS ana ekran uygulamasında "new Notification" çalışmaz;
+    // önce Service Worker üzerinden (showNotification), olmazsa klasik yöntemle gönderilir.
+    async function showNotif(body, tag) {
+        const opts = {
+            body: body,
+            tag: tag || 'ayetin-vakti',
+            lang: activeLang,
+            dir: activeLang === 'ar' ? 'rtl' : 'ltr',
+            icon: '/icon.png',
+            badge: '/icon.png'
+        };
+        try {
+            const reg = await getSW();
+            if (reg && reg.showNotification) {
+                await reg.showNotification('Ayetin Vakti', opts);
+                return true;
+            }
+        } catch (e) { /* klasik yönteme düş */ }
+        try {
+            new Notification('Ayetin Vakti', opts);
+            return true;
+        } catch (e) {
+            return false;
         }
     }
 
-    function parseTimeToday(timeStr) {
-        const [h, m] = timeStr.split(':').map(Number);
-        const d = new Date();
-        d.setHours(h, m, 0, 0);
-        return d;
+    function notificationsOn() {
+        return ('Notification' in window) &&
+               Notification.permission === 'granted' &&
+               localStorage.getItem('prayer_notif_on') !== '0';
     }
 
-    function addMinutes(dateObj, mins) {
-        return new Date(dateObj.getTime() + mins * 60000);
+    function reminderMinutes() {
+        const raw = localStorage.getItem('prayer_reminder_time');
+        if (raw === null) return 10;
+        const n = parseInt(raw, 10);
+        return (isNaN(n) || n < 0) ? null : n;
     }
 
-    function subMinutes(dateObj, mins) {
-        return new Date(dateObj.getTime() - mins * 60000);
+    function fillTemplate(str, name, min) {
+        return str.replace('{name}', name).replace('{min}', min);
     }
 
-    function formatTimeLeft(ms) {
-        if (ms <= 0) return "00:00:00";
-        const totalSec = Math.floor(ms / 1000);
-        const h = Math.floor(totalSec / 3600);
-        const m = Math.floor((totalSec % 3600) / 60);
-        const s = totalSec % 60;
-        const pad = (n) => String(n).padStart(2, '0');
-        return `${pad(h)}:${pad(m)}:${pad(s)}`;
-    }
+    function checkReminders(now, events) {
+        if (!notificationsOn()) return;
+        const mins = reminderMinutes();
+        if (mins === null) return;
 
-    function sayaciBaslat(timings) {
-        if (timerInterval) clearInterval(timerInterval);
+        for (const ev of events) {
+            const fireAt = ev.time - mins * 60000;
+            // mins > 0: vakte kadar geçerli (arka plandan dönüşte geç kalmış hatırlatma da gider)
+            // mins = 0: vakit girdikten sonra en fazla 2 dk
+            const lateLimit = mins > 0 ? ev.time : fireAt + 120000;
+            if (now < fireAt || now >= lateLimit) continue;
 
-        const vakitListesi = [
-            { id: 'Fajr', name: t.p_fajr, time: parseTimeToday(timings.Fajr.split(' ')[0]) },
-            { id: 'Sunrise', name: t.p_sunrise, time: parseTimeToday(timings.Sunrise.split(' ')[0]) },
-            { id: 'Dhuhr', name: t.p_dhuhr, time: parseTimeToday(timings.Dhuhr.split(' ')[0]) },
-            { id: 'Asr', name: t.p_asr, time: parseTimeToday(timings.Asr.split(' ')[0]) },
-            { id: 'Maghrib', name: t.p_maghrib, time: parseTimeToday(timings.Maghrib.split(' ')[0]) },
-            { id: 'Isha', name: t.p_isha, time: parseTimeToday(timings.Isha.split(' ')[0]) }
-        ];
+            const key = `pv_notified_${ev.dayStr}_${ev.id}_${mins}`;
+            if (localStorage.getItem(key)) continue;
+            try { localStorage.setItem(key, '1'); } catch (e) { /* yok say */ }
 
-        const sunriseDate = parseTimeToday(timings.Sunrise.split(' ')[0]);
-        const sunriseKerahatEnd = addMinutes(sunriseDate, 45);
-
-        const dhuhrDate = parseTimeToday(timings.Dhuhr.split(' ')[0]);
-        const dhuhrKerahatStart = subMinutes(dhuhrDate, 15);
-
-        const maghribDate = parseTimeToday(timings.Maghrib.split(' ')[0]);
-        const maghribKerahatStart = subMinutes(maghribDate, 45);
-
-        function guncelle() {
-            const simdi = new Date();
-            let sonrakiVakit = null;
-
-            document.querySelectorAll('.vakit-card').forEach(card => card.classList.remove('active'));
-
-            for (let vakit of vakitListesi) {
-                if (vakit.time > simdi) {
-                    sonrakiVakit = vakit;
-                    break;
-                }
-            }
-
-            if (!sonrakiVakit) {
-                const yarinkiImsak = addMinutes(parseTimeToday(timings.Fajr.split(' ')[0]), 24 * 60);
-                sonrakiVakit = { id: 'Fajr', name: t.p_fajr_tomorrow, time: yarinkiImsak };
-            }
-
-            const activeCard = document.getElementById(`card-${sonrakiVakit.id}`);
-            if (activeCard) activeCard.classList.add('active');
-
-            const fark = sonrakiVakit.time - simdi;
-            const totalSeconds = Math.floor(fark / 1000);
-
-            const reminderMinutes = parseInt(localStorage.getItem('prayer_reminder_time') || '10', 10);
-            const reminderSeconds = reminderMinutes * 60;
-
-            if (totalSeconds <= reminderSeconds && totalSeconds > (reminderSeconds - 2)) {
-                const notificationKey = `${sonrakiVakit.name}-${sonrakiVakit.time.toDateString()}`;
-                if (lastNotifiedPrayer !== notificationKey) {
-                    lastNotifiedPrayer = notificationKey;
-                    triggerPrayerNotification(sonrakiVakit.name, reminderMinutes);
-                }
-            }
-
-            const saatler = Math.floor(fark / (1000 * 60 * 60));
-            const dakikalar = Math.floor((fark % (1000 * 60 * 60)) / (1000 * 60));
-            const saniyeler = Math.floor((fark % (1000 * 60)) / 1000);
-
-            const format = (num) => String(num).padStart(2, '0');
-
-            const nextTitleEl = document.getElementById('next-prayer-title');
-            const countdownEl = document.getElementById('countdown-timer');
-
-            if (nextTitleEl) nextTitleEl.innerText = sonrakiVakit.name;
-            if (countdownEl) countdownEl.innerText = `${format(saatler)}:${format(dakikalar)}:${format(saniyeler)}`;
-
-            let kerahatTitleEl = document.getElementById('kerahat-title-text');
-            let kerahatTimerEl = document.getElementById('kerahat-timer');
-
-            if (simdi >= sunriseDate && simdi <= sunriseKerahatEnd) {
-                if (kerahatTitleEl) kerahatTitleEl.innerText = t.kerahat_sunrise_end;
-                if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(sunriseKerahatEnd - simdi);
-            } 
-            else if (simdi >= dhuhrKerahatStart && simdi <= dhuhrDate) {
-                if (kerahatTitleEl) kerahatTitleEl.innerText = t.kerahat_dhuhr_end;
-                if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(dhuhrDate - simdi);
-            } 
-            else if (simdi >= maghribKerahatStart && simdi <= maghribDate) {
-                if (kerahatTitleEl) kerahatTitleEl.innerText = t.kerahat_maghrib_end;
-                if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(maghribDate - simdi);
-            } 
-            else {
-                let sonrakiKerahatZamani = null;
-                let sonrakiKerahاتAdi = "";
-
-                if (simdi < sunriseDate) {
-                    sonrakiKerahatZamani = sunriseDate;
-                    sonrakiKerahاتAdi = t.kerahat_next_sunrise;
-                } else if (simdi > sunriseKerahatEnd && simdi < dhuhrKerahatStart) {
-                    sonrakiKerahatZamani = dhuhrKerahatStart;
-                    sonrakiKerahاتAdi = t.kerahat_next_dhuhr;
-                } else if (simdi > dhuhrDate && simdi < maghribKerahatStart) {
-                    sonrakiKerahatZamani = maghribKerahatStart;
-                    sonrakiKerahاتAdi = t.kerahat_next_maghrib;
-                } else {
-                    sonrakiKerahatZamani = addMinutes(sunriseDate, 24 * 60);
-                    sonrakiKerahاتAdi = t.kerahat_next_sunrise;
-                }
-
-                if (kerahatTitleEl) kerahatTitleEl.innerText = sonrakiKerahاتAdi;
-                if (kerahatTimerEl) kerahatTimerEl.innerText = formatTimeLeft(sonrakiKerahatZamani - simdi);
-            }
-        }
-
-        guncelle();
-        timerInterval = setInterval(guncelle, 1000);
-    }
-
-    function triggerPrayerNotification(prayerName, minutes) {
-        let msg = minutes === 0 
-            ? `${prayerName} vaktine erişildi, hayırlı ibadetler.` 
-            : `${prayerName} vaktine yaklaşılıyor, hazırlık vaktidir.`;
-
-        if ("Notification" in window && Notification.permission === "granted") {
-            new Notification("Ayetin Vakti", {
-                body: msg,
-                icon: "https://ayetinvakti.github.io/favicon.ico",
-                tag: "prayer-notification"
-            });
+            const name = t['p_' + ev.id.toLowerCase()];
+            const remaining = Math.max(1, Math.ceil((ev.time - now) / 60000));
+            const body = mins === 0 ? fillTemplate(t.notif_now, name, 0) : fillTemplate(t.notif_before, name, remaining);
+            showNotif(body, `vakit-${ev.dayStr}-${ev.id}`);
         }
     }
 
-    function bildirimIzniAta() {
+    function updateNotifButton() {
+        const btn = document.getElementById('notif-btn');
+        const label = document.getElementById('notif-label');
+        if (!btn || !label) return;
+        const on = notificationsOn();
+        btn.classList.toggle('on', on);
+        label.innerText = on ? t.notif_btn_on : t.notif_btn;
+    }
+
+    async function bildirimIzniAta() {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 
@@ -849,16 +1064,34 @@
             return;
         }
 
-        Notification.requestPermission().then((permission) => {
-            if (permission === 'granted') {
-                new Notification('Ayetin Vakti', {
-                    body: t.notif_success_body,
-                    icon: 'https://ayetinvakti.github.io/favicon.ico'
-                });
-            } else {
-                alert(t.notif_denied_alert);
-            }
-        });
+        if (Notification.permission === 'denied') {
+            alert(t.notif_denied_alert);
+            return;
+        }
+
+        // Zaten açıksa: kapat
+        if (notificationsOn()) {
+            localStorage.setItem('prayer_notif_on', '0');
+            updateNotifButton();
+            return;
+        }
+
+        let permission = Notification.permission;
+        if (permission !== 'granted') {
+            permission = await new Promise(resolve => {
+                const r = Notification.requestPermission(resolve);   // eski Safari: callback
+                if (r && typeof r.then === 'function') r.then(resolve); // yeni tarayıcılar: promise
+            });
+        }
+
+        if (permission === 'granted') {
+            localStorage.setItem('prayer_notif_on', '1');
+            updateNotifButton();
+            showNotif(t.notif_success_body, 'ayetin-vakti-test');
+        } else {
+            alert(t.notif_denied_alert);
+            updateNotifButton();
+        }
     }
 
     function kapatIosModal() {
@@ -866,36 +1099,22 @@
         if (modal) modal.style.display = 'none';
     }
 
+    // ===================== TEMA =====================
     function toggleTheme() {
-        const body = document.body;
-        body.classList.toggle('light-mode');
-        const isLight = body.classList.contains('light-mode');
-        if (isLight) {
-            document.documentElement.classList.add('light-mode');
-            localStorage.setItem('theme', 'light');
-        } else {
-            document.documentElement.classList.remove('light-mode');
-            localStorage.setItem('theme', 'dark');
-        }
+        const isLight = document.documentElement.classList.toggle('light-mode');
+        localStorage.setItem('theme', isLight ? 'light' : 'dark');
         updateThemeUI(isLight);
     }
 
     function updateThemeUI(isLight) {
         const btn = document.getElementById('theme-btn');
-        if (btn) {
-            btn.innerHTML = isLight ? '🌙' : '☀️';
-        }
+        if (btn) btn.innerHTML = isLight ? '🌙' : '☀️';
     }
 
+    // ===================== BAŞLATMA =====================
     document.addEventListener('DOMContentLoaded', () => {
-        const isLight = localStorage.getItem('theme') === 'light';
-        if (isLight) {
-            document.body.classList.add('light-mode');
-            document.documentElement.classList.add('light-mode');
-        }
-        updateThemeUI(isLight);
+        updateThemeUI(document.documentElement.classList.contains('light-mode'));
 
-        // Statik metinleri dile göre yerleştir
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
             if (t[key]) {
@@ -903,14 +1122,25 @@
                 else el.innerHTML = t[key];
             }
         });
+        document.title = t.page_title;
 
-        const savedCity = localStorage.getItem('user_city') || 'Erzincan';
-        const selectElement = document.getElementById('sehir-secimi');
-        if (selectElement) {
-            selectElement.value = savedCity;
-        }
+        // DÜZELTME: Kayıtlı şehir (Türkçe harfli ya da harfsiz) listedeki karşılığıyla eşleştirilir
+        const sel = document.getElementById('sehir-secimi');
+        const saved = localStorage.getItem('user_city') || 'Erzincan';
+        const wanted = normCity(saved);
+        let match = Array.from(sel.options).find(o => normCity(o.value) === wanted || normCity(o.text) === wanted);
+        if (!match) match = Array.from(sel.options).find(o => o.value === 'Erzincan');
+        sel.value = match.value;
+        state.apiCity = match.value;
 
-        vakitleriGetir();
+        updateNotifButton();
+        loadTimes();
+
+        setInterval(tick, 1000);
+
+        // Arka plandan dönünce ve internet gelince hemen güncelle
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+        window.addEventListener('online', () => { if (!state.today) loadTimes(); });
     });
 </script>
 </body>
