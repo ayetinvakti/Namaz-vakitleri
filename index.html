@@ -5,33 +5,50 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <script>
-        // Tema, Özel Renk Paleti ve Dil Kontrolü (Sayfa yüklenmeden önce çalışır, titremeyi önler)
-        const savedTheme = localStorage.getItem('theme');
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (savedTheme === 'light' || (!savedTheme && !systemPrefersDark)) {
-            document.documentElement.classList.add('light-mode');
-        }
-
-        const savedAccent = localStorage.getItem('custom_accent');
-        const savedBg = localStorage.getItem('custom_bg');
-        const savedText = localStorage.getItem('custom_text');
-
-        if (savedAccent) document.documentElement.style.setProperty('--accent-color', savedAccent);
-        if (savedBg) {
-            document.documentElement.style.setProperty('--bg-color', savedBg);
-            document.documentElement.style.setProperty('--card-bg', savedBg);
-        }
-        if (savedText) document.documentElement.style.setProperty('--text-color', savedText);
-
-        const currentLang = localStorage.getItem('user_lang') || 'tr';
-        document.documentElement.setAttribute('lang', currentLang);
-        document.documentElement.setAttribute('dir', currentLang === 'ar' ? 'rtl' : 'ltr');
-    </script>
-
     <meta charset="UTF-8">
-    <!-- DÜZELTME: Yakınlaştırmayı engelleyen maximum-scale / user-scalable=no kaldırıldı -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
+
+    <script>
+        // Tema, özel renk paleti ve dil (sayfa çizilmeden önce çalışır)
+        (function () {
+            const d = document.documentElement;
+            const savedTheme = localStorage.getItem('theme');
+            const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const isLight = savedTheme === 'light' || (!savedTheme && !systemPrefersDark);
+            if (isLight) d.classList.add('light-mode');
+            const a = localStorage.getItem('custom_accent');
+            const t = localStorage.getItem('custom_text');
+            const b = localStorage.getItem('custom_bg');
+            if (a) d.style.setProperty('--accent-color', a);
+            if (t) d.style.setProperty('--text-color', t);
+            if (b) {
+                d.style.setProperty('--bg-color', b);
+                d.style.setProperty('--card-bg', b);
+            }
+            // Özel arka plan var, yazı rengi seçilmemişse okunabilir renkleri zeminin açıklığına göre seç
+            if (b && !t) {
+                const m = /^#([0-9a-f]{6})$/i.exec(b.trim());
+                if (m) {
+                    const n = parseInt(m[1], 16);
+                    const lin = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+                    const L = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+                    const bgIsLight = L > 0.18;
+                    d.style.setProperty('--text-color', bgIsLight ? '#0f172a' : '#f8fafc');
+                    d.style.setProperty('--text-muted', bgIsLight ? '#475569' : '#cbd5e1');
+                    d.style.setProperty('--border-color', bgIsLight ? 'rgba(15,23,42,0.18)' : 'rgba(248,250,252,0.22)');
+                }
+            }
+            // Safari üst/alt çubuğu sayfa zemin rengine uysun
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', b || (isLight ? '#f8fafc' : '#0f172a'));
+
+            // Dil ve yön
+            const lang = localStorage.getItem('user_lang') || 'tr';
+            d.setAttribute('lang', lang);
+            d.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+        })();
+    </script>
     <title data-i18n="page_title">Canlı Namaz Vakitleri | Ayetin Vakti</title>
     
     <meta property="og:title" content="Namaz Vakitleri | Ayetin Vakti">
@@ -54,7 +71,11 @@
             --border-color: #334155;
             --btn-bg: rgba(255, 255, 255, 0.05);
             --btn-hover: rgba(255, 255, 255, 0.1);
+            color-scheme: dark;
         }
+
+        /* Tuşlara ard arda basınca sayfa yakınlaşmasın */
+        html, body, button, a, select, input, label, [onclick] { touch-action: manipulation; }
 
         * {
             box-sizing: border-box;
@@ -112,8 +133,10 @@
             transition: background-color 0.2s;
         }
 
-        .home-btn:hover {
-            background-color: var(--btn-hover);
+        @media (hover: hover) {
+            .home-btn:hover {
+                background-color: var(--btn-hover);
+            }
         }
 
         .theme-icon-btn {
@@ -131,8 +154,10 @@
             transition: background-color 0.2s;
         }
 
-        .theme-icon-btn:hover {
-            background-color: var(--btn-hover);
+        @media (hover: hover) {
+            .theme-icon-btn:hover {
+                background-color: var(--btn-hover);
+            }
         }
 
         .header {
@@ -147,13 +172,13 @@
         }
 
         .countdown-card {
-            background: linear-gradient(135deg, #1e293b, #0f172a);
+            background: linear-gradient(135deg, var(--card-bg), var(--bg-color));
             border: 2px solid var(--accent-color);
             border-radius: 16px;
             padding: 20px;
             text-align: center;
             margin-bottom: 20px;
-            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.2);
+            box-shadow: 0 4px 20px color-mix(in srgb, var(--accent-color) 20%, transparent);
         }
 
         .countdown-title {
@@ -238,8 +263,8 @@
 
         .vakit-card.active {
             border-color: var(--accent-color);
-            background-color: #112a2e;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+            background-color: color-mix(in srgb, var(--accent-color) 12%, var(--card-bg));
+            box-shadow: 0 0 10px color-mix(in srgb, var(--accent-color) 30%, transparent);
         }
 
         .notification-btn {
@@ -260,13 +285,15 @@
             transition: all 0.3s ease;
         }
 
-        .notification-btn:hover {
-            background-color: rgba(16, 185, 129, 0.1);
+        @media (hover: hover) {
+            .notification-btn:hover {
+                background-color: color-mix(in srgb, var(--accent-color) 10%, transparent);
+            }
         }
 
         .notification-btn.on {
             border-style: solid;
-            background-color: rgba(16, 185, 129, 0.12);
+            background-color: color-mix(in srgb, var(--accent-color) 12%, transparent);
         }
 
         .notif-note {
@@ -327,7 +354,7 @@
             color: var(--text-muted);
         }
 
-        /* DÜZELTME: Tema sınıfı <html> üzerinde olduğu için seçiciler html.light-mode yapıldı */
+        /* Gündüz Teması (Açık Mod) */
         html.light-mode {
             --bg-color: #f8fafc;
             --card-bg: #ffffff;
@@ -338,60 +365,7 @@
             --border-color: #e2e8f0;
             --btn-bg: #f1f5f9;
             --btn-hover: #e2e8f0;
-        }
-
-        html.light-mode body {
-            background-color: #f8fafc !important;
-        }
-
-        html.light-mode .header h1 {
-            color: #059669 !important;
-        }
-
-        html.light-mode .countdown-card {
-            background: #ffffff !important;
-            border-color: #10b981 !important;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
-        }
-
-        html.light-mode .countdown-title {
-            color: #64748b !important;
-        }
-
-        html.light-mode .next-prayer-name {
-            color: #059669 !important;
-        }
-
-        html.light-mode .timer-display {
-            color: #0f172a !important;
-        }
-
-        html.light-mode .vakit-card,
-        html.light-mode .notification-btn,
-        html.light-mode .ios-modal-content,
-        html.light-mode .city-select {
-            background-color: #ffffff !important;
-            border-color: #e2e8f0 !important;
-            color: #1e293b !important;
-        }
-
-        html.light-mode .notification-btn.on {
-            background-color: #ecfdf5 !important;
-            border-color: #10b981 !important;
-        }
-
-        html.light-mode .ios-modal-content p {
-            color: #64748b !important;
-        }
-
-        html.light-mode .vakit-saat {
-            color: #059669 !important;
-        }
-
-        html.light-mode .vakit-card.active {
-            background-color: #ecfdf5 !important;
-            border-color: #10b981 !important;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.2) !important;
+            color-scheme: light;
         }
     </style>
 </head>
@@ -400,7 +374,7 @@
 <div class="container">
     <div class="navbar">
         <a href="../" class="home-btn" title="Ana Sayfa">←</a>
-        <button class="theme-icon-btn" onclick="toggleTheme()" id="theme-btn" title="Tema Değiştir">☀️</button>
+        <button class="theme-icon-btn" onclick="toggleTheme()" id="theme-btn" title="Tema Değiştir">🌙</button>
     </div>
 
     <div class="header">
@@ -1103,17 +1077,27 @@
     function toggleTheme() {
         const isLight = document.documentElement.classList.toggle('light-mode');
         localStorage.setItem('theme', isLight ? 'light' : 'dark');
-        updateThemeUI(isLight);
+        updateThemeUI();
+        updateThemeColor();
     }
 
-    function updateThemeUI(isLight) {
+    function updateThemeUI() {
         const btn = document.getElementById('theme-btn');
-        if (btn) btn.innerHTML = isLight ? '🌙' : '☀️';
+        if (btn) btn.textContent = document.documentElement.classList.contains('light-mode') ? '☀️' : '🌙';
+    }
+
+    // Safari üst/alt çubuğu sayfa zemin rengine uysun
+    function updateThemeColor() {
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (!meta) return;
+        const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim();
+        if (bg) meta.setAttribute('content', bg);
     }
 
     // ===================== BAŞLATMA =====================
     document.addEventListener('DOMContentLoaded', () => {
-        updateThemeUI(document.documentElement.classList.contains('light-mode'));
+        updateThemeUI();
+        updateThemeColor();
 
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
