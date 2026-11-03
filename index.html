@@ -999,6 +999,8 @@
         if (!notificationsOn()) return;
         const mins = reminderMinutes();
         if (mins === null) return;
+        // Sunucu bildirimi (ayet/hadis/dua ile) etkinse yerel bildirim atlanır
+        if (localStorage.getItem('pv_push_ok') === '1') return;
 
         for (const ev of events) {
             const fireAt = ev.time - mins * 60000;
@@ -1088,13 +1090,16 @@
                 })
             });
             if (!res.ok) throw new Error('HTTP ' + res.status);
+            localStorage.setItem('pv_push_ok', '1');
         } catch (e) {
             lastPushSync = 0;
+            try { localStorage.removeItem('pv_push_ok'); } catch (x) { /* yok say */ }
             console.log('Arka plan bildirimi kaydı yapılamadı:', e);
         }
     }
 
     async function pushUnsubscribe() {
+        try { localStorage.removeItem('pv_push_ok'); } catch (x) { /* yok say */ }
         if (!pushAvailable()) return;
         try {
             const reg = await getSW();
