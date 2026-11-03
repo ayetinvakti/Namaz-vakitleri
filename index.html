@@ -399,7 +399,7 @@
     <button class="notification-btn" id="notif-btn" onclick="bildirimIzniAta()">
         <span>🔔</span> <span id="notif-label" data-i18n="notif_btn">Vakit Bildirimlerini Aç</span>
     </button>
-    <div class="notif-note" data-i18n="notif_note">Bildirimler, uygulama açıkken veya arka planda canlı kaldığı sürece gönderilir.</div>
+    <div class="notif-note" data-i18n="notif_note">Bildirimler, uygulama kapalıyken de vakitlerde cihazınıza gönderilir.</div>
 
     <select id="sehir-secimi" class="city-select" onchange="sehirDegisti()">
         <option value="Adana">Adana</option>
@@ -548,7 +548,7 @@
             kerahat_subtitle: "Kerahat Vaktine Kalan Süre",
             notif_btn: "Vakit Bildirimlerini Aç",
             notif_btn_on: "Bildirimler Açık ✓ (kapatmak için dokunun)",
-            notif_note: "Bildirimler, uygulama açıkken veya arka planda canlı kaldığı sürece gönderilir.",
+            notif_note: "Bildirimler, uygulama kapalıyken de vakitlerde cihazınıza gönderilir.",
             p_fajr: "İmsak",
             p_sunrise: "Güneş",
             p_dhuhr: "Öğle",
@@ -583,7 +583,7 @@
             kerahat_subtitle: "Time Left for Makruh Time",
             notif_btn: "Enable Prayer Notifications",
             notif_btn_on: "Notifications On ✓ (tap to turn off)",
-            notif_note: "Notifications are sent while the app is open or kept alive in the background.",
+            notif_note: "Notifications are also delivered to your device when the app is closed.",
             p_fajr: "Fajr",
             p_sunrise: "Sunrise",
             p_dhuhr: "Dhuhr",
@@ -618,7 +618,7 @@
             kerahat_subtitle: "الوقت المتبقي للوقت المكروه",
             notif_btn: "تفعيل إشعارات أوقات الصلاة",
             notif_btn_on: "الإشعارات مفعّلة ✓ (اضغط للإيقاف)",
-            notif_note: "تُرسل الإشعارات أثناء فتح التطبيق أو بقائه نشطًا في الخلفية.",
+            notif_note: "تصلك الإشعارات على جهازك حتى عندما يكون التطبيق مغلقًا.",
             p_fajr: "الفجر",
             p_sunrise: "الشروق",
             p_dhuhr: "الظهر",
@@ -832,6 +832,7 @@
         // Türkçe adı kaydet: diğer sayfalarla (ana sayfa vb.) aynı biçim
         localStorage.setItem('user_city', opt.text);
         state.apiCity = sel.value;
+        pushSync(true);
         state.today = null; state.tomorrow = null; state.renderedStr = null;
         state.loading = false;
         state.seq++;
@@ -1026,6 +1027,89 @@
         label.innerText = on ? t.notif_btn_on : t.notif_btn;
     }
 
+    // ===================== ARKA PLAN BİLDİRİMİ (Web Push) =====================
+    // Bildirim sunucusunun (Cloudflare Worker) adresi. Kurulumdan sonra buraya yazılır.
+    const PUSH_API = 'https://ayetin-vakti-push.hercayi9.workers.dev';
+
+    function pushAvailable() {
+        return !/BURAYA/.test(PUSH_API) && 'serviceWorker' in navigator && 'PushManager' in window;
+    }
+
+    function b64uToU8(s) {
+        const p = s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4);
+        const bin = atob(p);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+    }
+    function u8ToB64u(buf) {
+        const b = new Uint8Array(buf);
+        let s = '';
+        for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+        return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    // Cihazı sunucuya kaydeder / ayarlarını (şehir, dakika, dil) günceller. Tekrar çağrılması zararsızdır.
+    let lastPushSync = 0;
+    async function pushSync(force) {
+        if (!pushAvailable() || !notificationsOn()) return;
+        const nowMs = Date.now();
+        if (!force && nowMs - lastPushSync < 30000) return;
+        lastPushSync = nowMs;
+        try {
+            const reg = await getSW();
+            if (!reg || !reg.pushManager) return;
+
+            const keyRes = await fetch(PUSH_API + '/vapid');
+            const serverKey = (await keyRes.json()).key;
+
+            let sub = await reg.pushManager.getSubscription();
+            // Sunucu anahtarı değişmişse eski abonelik geçersizdir: yenile
+            if (sub && sub.options && sub.options.applicationServerKey &&
+                u8ToB64u(sub.options.applicationServerKey) !== serverKey) {
+                await sub.unsubscribe();
+                sub = null;
+            }
+            if (!sub) {
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: b64uToU8(serverKey)
+                });
+            }
+            const mins = reminderMinutes();
+            const res = await fetch(PUSH_API + '/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subscription: sub.toJSON(),
+                    city: state.apiCity,
+                    mins: mins === null ? -1 : mins,
+                    lang: activeLang
+                })
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+        } catch (e) {
+            lastPushSync = 0;
+            console.log('Arka plan bildirimi kaydı yapılamadı:', e);
+        }
+    }
+
+    async function pushUnsubscribe() {
+        if (!pushAvailable()) return;
+        try {
+            const reg = await getSW();
+            const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
+            if (!sub) return;
+            const endpoint = sub.endpoint;
+            await sub.unsubscribe();
+            await fetch(PUSH_API + '/unsubscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ endpoint })
+            });
+        } catch (e) { /* yok say */ }
+    }
+
     async function bildirimIzniAta() {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
@@ -1050,6 +1134,7 @@
         if (notificationsOn()) {
             localStorage.setItem('prayer_notif_on', '0');
             updateNotifButton();
+            pushUnsubscribe();
             return;
         }
 
@@ -1065,6 +1150,7 @@
             localStorage.setItem('prayer_notif_on', '1');
             updateNotifButton();
             showNotif(t.notif_success_body, 'ayetin-vakti-test');
+            pushSync(true);
         } else {
             alert(t.notif_denied_alert);
             updateNotifButton();
@@ -1121,12 +1207,13 @@
         state.apiCity = match.value;
 
         updateNotifButton();
+        pushSync(true);
         loadTimes();
 
         setInterval(tick, 1000);
 
         // Arka plandan dönünce ve internet gelince hemen güncelle
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) { tick(); pushSync(); } });
         window.addEventListener('online', () => { if (!state.today) loadTimes(); });
     });
 </script>
