@@ -156,6 +156,9 @@
             justify-content: center;
             transition: background-color 0.2s;
         }
+        
+.nav-group { display: flex; align-items: center; gap: 8px; }
+.nav-group > * { flex: none; }
 
         @media (hover: hover) {
             .theme-icon-btn:hover {
@@ -376,10 +379,12 @@
 
 <div class="container">
     <div class="navbar">
+    <div class="nav-group">
         <a href="../" class="home-btn" title="Ana Sayfa">←</a>
-        <button class="circle-btn" data-drawer-toggle aria-label="Menü" title="Menü">☰</button>
-        <button class="theme-icon-btn" onclick="toggleTheme()" id="theme-btn" title="Tema Değiştir">🌙</button>
+        <button class="theme-icon-btn" data-drawer-toggle aria-label="Menü" title="Menü">☰</button>
     </div>
+    <button class="theme-icon-btn" onclick="toggleTheme()" id="theme-btn" title="Tema Değiştir" aria-label="Tema Değiştir">🌙</button>
+</div>
 
     <div class="header">
         <h1 data-i18n="main_title">Namaz Vakitleri</h1>
