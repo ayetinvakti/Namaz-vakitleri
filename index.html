@@ -1125,7 +1125,10 @@
             const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
             if (!sub) return;
             const endpoint = sub.endpoint;
-            await sub.unsubscribe();
+            // Mübarek gün hatırlatması açıksa tarayıcı aboneliği korunur (Dini Günler sayfası da aynı aboneliği kullanır)
+            let keepSub = false;
+            try { keepSub = localStorage.getItem('dg_push_ok') === '1'; } catch (x) { /* yok say */ }
+            if (!keepSub) await sub.unsubscribe();
             await fetch(PUSH_API + '/unsubscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
